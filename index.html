@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#f7f4ed">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="format-detection" content="telephone=no,email=no,address=no">
+<meta name="referrer" content="no-referrer-when-downgrade">
 <title>上岸常识刷刷刷</title>
 <style>
 :root{
@@ -28,7 +31,8 @@
   --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","HarmonyOS Sans SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;overflow:hidden}
+html,body{height:100%;overflow:hidden;overscroll-behavior:none;
+  -webkit-text-size-adjust:100%;text-size-adjust:100%}
 body{
   background:var(--paper);
   background-image:
@@ -36,9 +40,14 @@ body{
     radial-gradient(ellipse 70% 50% at 90% 100%,rgba(47,111,94,.055),transparent 55%);
   color:var(--ink);font-family:var(--sans);
   display:flex;flex-direction:column;
-  height:100dvh;max-height:100dvh;
+  height:100vh;height:var(--apph,100dvh);max-height:var(--apph,100dvh);
   -webkit-font-smoothing:antialiased;
+  -webkit-touch-callout:none;overflow-wrap:anywhere;
 }
+/* 微信内置浏览器（X5 / XWeb）：禁掉长按弹菜单和自动识别，减少干扰 */
+body{-webkit-user-select:none;user-select:none}
+input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webkit-appearance:none;appearance:none;border-radius:0}
+button{-webkit-appearance:none;appearance:none;touch-action:manipulation}
 button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit}
 
 /* ---------- 顶栏 ---------- */
@@ -60,7 +69,9 @@ header{
 .ring circle{fill:none;stroke-width:2.6;stroke-linecap:round}
 .ring .bg{stroke:var(--paper-2)}
 .ring .fg{stroke:var(--accent);transition:stroke-dashoffset .5s cubic-bezier(.4,0,.2,1)}
-.ring span{font-family:var(--serif);font-size:10.5px;color:var(--ink-2)}
+/* svg 是定位元素，按绘制顺序会盖住文字；必须把文字抬到上层，否则百分比被圆圈挡住 */
+.ring span{position:relative;z-index:1;font-family:var(--serif);font-size:9px;font-weight:600;
+  color:var(--ink-2);line-height:1;letter-spacing:-.2px;font-variant-numeric:tabular-nums}
 .icon-btn{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:var(--ink-3);transition:.18s;flex:0 0 auto}
 .icon-btn:hover{background:var(--paper-2);color:var(--ink)}
 .icon-btn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.7}
@@ -125,12 +136,22 @@ main{flex:1;min-height:0;position:relative}
 }
 .cardwrap{width:100%;height:100%;max-height:470px;max-width:600px;margin:0 auto;perspective:1800px}
 .card{
+  --flip:.6s;
   position:relative;width:100%;height:100%;
-  transform-style:preserve-3d;transition:transform .6s cubic-bezier(.32,.06,.18,1);
+  transform-style:preserve-3d;-webkit-transform-style:preserve-3d;
+  transition:transform var(--flip) cubic-bezier(.32,.06,.18,1);
   cursor:pointer;touch-action:pan-y;
 }
 .card.flipped{transform:rotateY(180deg)}
 .card.leaving{opacity:0;transform:translateY(-14px) scale(.985);transition:.28s ease}
+/* iOS Safari / 微信 XWeb 在 .face 带 overflow 时会忽略 backface-visibility，
+   翻面后正面仍会以镜像透出来。这里补一层「翻转过半时切换可见性」的兜底，
+   两层保险同时生效，确保任意内核下都只有一面可见。 */
+.face{transition:visibility 0s linear calc(var(--flip) / 2)}
+.face.front{visibility:visible}
+.face.back{visibility:hidden}
+.card.flipped .face.front{visibility:hidden}
+.card.flipped .face.back{visibility:visible}
 .face{
   position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;
   border-radius:18px;background:var(--card);border:1px solid var(--line);
@@ -448,6 +469,35 @@ main{flex:1;min-height:0;position:relative}
 .chips.state{margin-top:7px;padding-top:8px;border-top:1px dashed var(--line)}
 .chips.state .chip{font-size:11px;padding:4px 10px;border-radius:7px}
 .chips.state .chip.on{background:var(--gold);border-color:var(--gold);color:#fff}
+
+/* ---------- 卡片库：板块 / 状态折叠下拉 ---------- */
+.dropbar{
+  display:flex;align-items:center;gap:8px;width:100%;margin-top:11px;
+  border:1px solid var(--line);background:var(--card);border-radius:10px;
+  padding:10px 13px;font-size:12.5px;color:var(--ink);text-align:left;transition:.16s;
+}
+.dropbar:hover{border-color:#d3c9b6}
+.dropbar .dl{font-size:10px;color:var(--ink-3);letter-spacing:1.4px;flex:0 0 auto}
+.dropbar b{font-family:var(--serif);font-size:13px;font-weight:600;color:var(--ink);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dropbar .dc{margin-left:auto;font-style:normal;font-size:9px;color:var(--ink-3);transition:transform .22s;flex:0 0 auto}
+.dropbar.on{border-color:var(--ink-3)}
+.dropbar.on .dc{transform:rotate(180deg)}
+.drop{
+  display:none;margin-top:7px;border:1px solid var(--line);background:var(--card);
+  border-radius:12px;padding:11px 13px 13px;box-shadow:var(--shadow);
+}
+.drop.on{display:block;animation:dropIn .22s cubic-bezier(.22,.8,.3,1)}
+@keyframes dropIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
+.drop-g{font-size:10px;color:var(--ink-3);letter-spacing:1.6px;margin:2px 0 8px}
+.drop-g2{margin-top:15px;padding-top:11px;border-top:1px dashed var(--line)}
+.drop-c{display:flex;flex-wrap:wrap;gap:6px}
+.drop .chip{border-radius:8px}
+.drop .chip.st.on{background:var(--gold);border-color:var(--gold);color:#fff}
+.drop .chip.st.on i{color:#fff;opacity:.6}
+.drop .reset{margin-top:11px;font-size:10.5px;color:var(--ink-3);letter-spacing:.5px;text-decoration:underline;text-decoration-color:var(--line)}
+/* 微信 Android（X5 内核）毛玻璃兼容性差，直接给实色背景 */
+html.wx-android header{backdrop-filter:none;-webkit-backdrop-filter:none;background:var(--paper)}
 
 .grid-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:9px;padding:14px 0 90px}
 .item{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:13px 15px;cursor:pointer;transition:.16s;box-shadow:var(--shadow-sm)}
@@ -788,7 +838,8 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
   .grid-list{grid-template-columns:repeat(2,1fr)}
 }
 @media(prefers-reduced-motion:reduce){
-  *{animation-duration:.01ms!important;transition-duration:.01ms!important}
+  *{animation-duration:.01ms!important;transition-duration:.01ms!important;transition-delay:0s!important}
+  .card{--flip:.001s}
 }
 </style>
 <script>
@@ -801,6 +852,23 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
     var name=(t==='auto'||t==='light'||t==='dark')?(dark?'ye':'zhi'):t;
     document.documentElement.dataset.theme=name;
   }catch(e){document.documentElement.dataset.theme='zhi';}
+})();
+/* 微信内置浏览器（X5 / XWeb）适配：标记内核类型 + 视口高度兜底 */
+(function(){
+  var d=document.documentElement, ua=navigator.userAgent||'';
+  if(/MicroMessenger/i.test(ua)){
+    d.classList.add('wx');
+    if(/wxwork/i.test(ua))d.classList.add('wxwork');
+    if(/Android/i.test(ua))d.classList.add('wx-android');
+    var bridge=function(){d.classList.add('wx-bridge')};
+    if(window.WeixinJSBridge)bridge();
+    else document.addEventListener('WeixinJSBridgeReady',bridge,false);
+  }
+  /* 部分微信内核不认 dvh，直接给一份 px 值兜底 */
+  var setH=function(){ d.style.setProperty('--apph',(window.innerHeight||screen.height)+'px'); };
+  setH();
+  window.addEventListener('resize',setH);
+  window.addEventListener('orientationchange',function(){setTimeout(setH,320)});
 })();
 </script>
 </head>
@@ -1029,8 +1097,16 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
           <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
           <input id="q" placeholder="搜索成语 / 拼音 / 首字母…" autocomplete="off" enterkeyhint="search">
         </div>
-        <div class="chips" id="chips"></div>
-        <div class="chips state" id="stateChips"></div>
+        <button class="dropbar" id="dropBar" aria-expanded="false">
+          <span class="dl">筛选</span><b id="dropTxt">全部板块</b><i class="dc">▾</i>
+        </button>
+        <div class="drop" id="dropPanel">
+          <div class="drop-g">按板块筛选</div>
+          <div class="drop-c" id="dropCats"></div>
+          <div class="drop-g drop-g2">按学习状态筛选</div>
+          <div class="drop-c" id="dropStates"></div>
+          <button class="reset" id="dropReset">重置筛选</button>
+        </div>
       </div>
       <div class="grid-list" id="list"></div>
     </div>
@@ -1521,9 +1597,13 @@ const App={
 
   updateRing(done,total){
     const C=91.1;
-    const pct=total?done/total:0;
-    document.getElementById('ringFg').style.strokeDashoffset=C*(1-pct);
-    document.getElementById('ringTxt').textContent=total?Math.round(pct*100):0;
+    const pct=total?Math.max(0,Math.min(1,done/total)):0;
+    const fg=document.getElementById('ringFg');
+    if(fg)fg.style.strokeDashoffset=C*(1-pct);
+    const txt=document.getElementById('ringTxt');
+    if(txt)txt.textContent=Math.round(pct*100)+'%';
+    const ring=document.querySelector('.ring');
+    if(ring)ring.title=(total?Math.round(pct*100)+'%':'0%')+' · 当前板块 '+(total?done:'0')+' / '+(total||0);
   },
 
   next(){
@@ -1592,6 +1672,18 @@ const App={
     if(bf)bf.addEventListener('click',()=>this.openFix());
     const fm=document.getElementById('fixModal');
     if(fm)fm.addEventListener('click',e=>{if(e.target.id==='fixModal')this.closeFix()});
+    const db=document.getElementById('dropBar');
+    if(db)db.addEventListener('click',e=>{e.stopPropagation();this.toggleDrop()});
+    const dr=document.getElementById('dropReset');
+    if(dr)dr.addEventListener('click',e=>{
+      e.stopPropagation();
+      this.filter.cat='全部';this.filter.state='all';this.shown=60;
+      this.buildChips();this.renderList();
+    });
+    document.addEventListener('click',e=>{
+      const panel=document.getElementById('dropPanel');
+      if(panel&&panel.classList.contains('on')&&!panel.contains(e.target))this.toggleDrop(false);
+    });
     document.querySelectorAll('nav button').forEach(b=>{
       b.addEventListener('click',()=>{
         document.querySelectorAll('nav button').forEach(x=>x.classList.remove('on'));
@@ -1601,7 +1693,7 @@ const App={
         if(b.dataset.v==='today')this.activate('know');
         if(b.dataset.v==='idiom')this.activate('idiom');
         if(b.dataset.v==='stats')this.renderStats();
-        if(b.dataset.v==='library'){this.buildStateChips();this.renderList();}
+        if(b.dataset.v==='library'){this.toggleDrop(false);this.buildChips();this.renderList();}
         if(b.dataset.v==='quiz'){ this.initQuizCfg(); if(!this.qx.list.length)this.showQxScreen('start'); }
         try{history.replaceState(null,'','#'+b.dataset.v)}catch(e){}
       });
@@ -1685,6 +1777,26 @@ const App={
     const stage=document.getElementById('stage');
     const outer=document.getElementById('cardOuter');
     if(!stage||!outer)return;
+
+    /* 兜底：极少数老内核（旧版微信 XWeb / iOS < 13）没有 PointerEvent，
+       用 touch 事件合成同结构的事件，保证翻卡与滑动仍可用 */
+    if(!window.PointerEvent){
+      const mk=(type,x,y)=>{
+        const ev=new Event(type,{bubbles:true,cancelable:true});
+        ev.clientX=x;ev.clientY=y;ev.pointerType='touch';ev.pointerId=1;
+        ev.button=0;ev.buttons=1;return ev;
+      };
+      stage.addEventListener('touchstart',e=>{
+        const t=e.touches[0]; if(t)stage.dispatchEvent(mk('pointerdown',t.clientX,t.clientY));
+      },{passive:true});
+      stage.addEventListener('touchmove',e=>{
+        const t=e.touches[0]; if(t)stage.dispatchEvent(mk('pointermove',t.clientX,t.clientY));
+      },{passive:true});
+      const fin=e=>{ const t=e.changedTouches&&e.changedTouches[0];
+        if(t)stage.dispatchEvent(mk('pointerup',t.clientX,t.clientY)); };
+      stage.addEventListener('touchend',fin);
+      stage.addEventListener('touchcancel',fin);
+    }
 
     let sx=0,sy=0,dx=0,dy=0,dragging=false,moved=false,t0=0,lock=null;
     const hints=()=>[...document.querySelectorAll('#stage .sh')];
@@ -1809,7 +1921,8 @@ const App={
   },
 
   buildChips(){
-    const box=document.getElementById('chips');
+    const box=document.getElementById('dropCats');
+    if(!box)return;
     const cats=['全部'].concat(CATS);
     box.innerHTML='';
     const counts={};
@@ -1825,7 +1938,7 @@ const App={
   },
 
   buildStateChips(){
-    const box=document.getElementById('stateChips');
+    const box=document.getElementById('dropStates');
     if(!box)return;
     const defs=[['all','全部'],['new','未学'],['learning','学习中'],['master','已掌握'],['wrong','有错题'],['star','已收藏']];
     box.innerHTML='';
@@ -1833,11 +1946,30 @@ const App={
       const n=this.countState(k);
       if(k!=='all'&&n===0)return;
       const b=document.createElement('button');
-      b.className='chip'+(this.filter.state===k?' on':'');
+      b.className='chip st'+(this.filter.state===k?' on':'');
       b.innerHTML=label+'<i>'+n+'</i>';
       b.onclick=()=>{this.filter.state=k;this.shown=60;this.buildStateChips();this.renderList()};
       box.appendChild(b);
     });
+    this.paintDropBar();
+  },
+
+  paintDropBar(){
+    const txt=document.getElementById('dropTxt');
+    if(!txt)return;
+    const cat=this.filter.cat==='全部'?'全部板块':this.filter.cat;
+    const stateTxt={all:'',new:'未学',learning:'学习中',master:'已掌握',wrong:'有错题',star:'已收藏'}[this.filter.state]||'';
+    const n=this.match().length;
+    txt.textContent=cat+(stateTxt?' · '+stateTxt:'')+'（'+n+' 张）';
+  },
+
+  toggleDrop(force){
+    const bar=document.getElementById('dropBar'),panel=document.getElementById('dropPanel');
+    if(!bar||!panel)return;
+    const on=force!==undefined?force:!panel.classList.contains('on');
+    panel.classList.toggle('on',on);
+    bar.classList.toggle('on',on);
+    bar.setAttribute('aria-expanded',on?'true':'false');
   },
 
   countState(k){
@@ -1890,6 +2022,7 @@ const App={
   renderList(){
     const box=document.getElementById('list');
     const arr=this.match();
+    this.paintDropBar();
     box.innerHTML='';
     if(!arr.length){box.innerHTML='<div class="empty">没有匹配的卡片</div>';return}
     const show=arr.slice(0,this.shown);

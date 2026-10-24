@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 生成自检页面：把 index.html 复制一份，注入 89 项断言，输出到 outputs/selftest.html
+ * 生成自检页面：把 index.html 复制一份，注入 101 项断言，输出到 outputs/selftest.html
  * 由 test.sh 调用，配合无头 Chrome 运行。
  */
 const fs = require('fs');
@@ -122,6 +122,18 @@ try{
 
   key(' ','Space');
   ok('D3 空格翻面', App.flipped===true);
+
+  /* 翻面后两个面必须互斥可见：iOS / 微信 XWeb 会忽略 backface-visibility，
+     正面会以镜像透出来，这里锁定兜底逻辑生效 */
+  await sleep(420);
+  const vf=getComputedStyle(document.querySelector('#card .face.front')).visibility;
+  const vb=getComputedStyle(document.querySelector('#card .face.back')).visibility;
+  ok('D3b 翻面后正面隐藏', vf==='hidden'&&vb==='visible', vf+'/'+vb);
+  App.flip(); await sleep(420);
+  const vf2=getComputedStyle(document.querySelector('#card .face.front')).visibility;
+  const vb2=getComputedStyle(document.querySelector('#card .face.back')).visibility;
+  ok('D3c 翻回后反面隐藏', vf2==='visible'&&vb2==='hidden', vf2+'/'+vb2);
+  App.flip();                      // 恢复翻面状态，保证后面的滑动评分用例成立
 
   const gi=App.idx;
   swipe(st,300,300,110,300);
@@ -269,6 +281,47 @@ try{
   item.click();
   ok('F6 条目展开', item.classList.contains('open'));
 
+  /* ---------- F2 卡片库折叠下拉 ---------- */
+  document.querySelector('nav button[data-v="today"]').click();
+  await sleep(40);
+  document.querySelector('nav button[data-v="library"]').click();
+  await sleep(60);
+  const dropBar=document.getElementById('dropBar'),dropPanel=document.getElementById('dropPanel');
+  ok('F7 默认收起且显示摘要', !dropPanel.classList.contains('on') &&
+     document.getElementById('dropTxt').textContent.indexOf('全部板块')>=0,
+     document.getElementById('dropTxt').textContent);
+  dropBar.click();
+  const catChips=[...document.querySelectorAll('#dropCats .chip')];
+  ok('F8 展开后含全部板块', dropPanel.classList.contains('on') && catChips.length===CATS.length+1,
+     catChips.length+' 项');
+  ok('F9 状态分组存在', [...document.querySelectorAll('#dropStates .chip')].length>=5);
+
+  const catChip=catChips.find(b=>b.textContent.indexOf('成语')>=0);
+  catChip.click();
+  ok('F10 点板块即筛选', App.filter.cat==='成语' &&
+     document.getElementById('dropTxt').textContent.indexOf('成语')>=0 &&
+     App.match().every(c=>c.cat==='成语'),
+     document.getElementById('dropTxt').textContent);
+
+  const stChip=[...document.querySelectorAll('#dropStates .chip')].find(b=>b.textContent.indexOf('已掌握')>=0);
+  if(stChip){
+    stChip.click();
+    ok('F11 状态可叠加筛选', App.filter.state==='master' &&
+       document.getElementById('dropTxt').textContent.indexOf('已掌握')>=0,
+       document.getElementById('dropTxt').textContent);
+  } else ok('F11 状态可叠加筛选', true, '暂无从众状态');
+
+  document.getElementById('dropReset').click();
+  ok('F12 一键重置', App.filter.cat==='全部' && App.filter.state==='all' &&
+     document.getElementById('dropTxt').textContent.indexOf('全部板块')>=0);
+
+  dropBar.click();
+  document.querySelector('nav button[data-v="stats"]').click();
+  await sleep(40);
+  ok('F13 点外部自动收起', !dropPanel.classList.contains('on'));
+  document.querySelector('nav button[data-v="today"]').click();
+  await sleep(40);
+
   /* ---------- G 计时与数据 ---------- */
   // 计时：活跃 / 空闲 / 数据页
   App.activate('know');
@@ -313,6 +366,15 @@ try{
   ok('G10 月视图6根', document.querySelectorAll('#timeChart > div').length===6);
   ok('G11 学习日历84格', document.querySelectorAll('#cal i').length===84);
   ok('G12 板块正确率有行', document.querySelectorAll('#accDist .row').length>0);
+
+  App.updateRing(3,12);
+  ok('G13 圆环显示百分比', document.getElementById('ringTxt').textContent==='25%' &&
+     document.getElementById('ringTxt').getBoundingClientRect().width>0,
+     document.getElementById('ringTxt').textContent);
+  App.updateRing(0,0);
+  ok('G14 无队列时归零', document.getElementById('ringTxt').textContent==='0%');
+  App.updateRing(12,12);
+  ok('G15 满进度 100%', document.getElementById('ringTxt').textContent==='100%');
 
   /* ---------- H 设置 ---------- */
   document.getElementById('btnSet').click();
