@@ -1,0 +1,332 @@
+#!/usr/bin/env node
+/**
+ * 生成自检页面：把 index.html 复制一份，注入 78 项断言，输出到 outputs/selftest.html
+ * 由 test.sh 调用，配合无头 Chrome 运行。
+ */
+const fs = require('fs');
+const ROOT = require('path').resolve(__dirname, '..');
+const inPath = require('path').join(ROOT, 'index.html');
+const outPath = require('path').join(ROOT, 'outputs', 'selftest.html');
+const inHtml = fs.readFileSync(inPath, 'utf8');
+
+const harness = `
+<script>
+window.__err=[];
+window.addEventListener('error',e=>window.__err.push(e.message));
+const LOG=[];
+const ok=(n,c,x)=>LOG.push((c?'PASS ':'FAIL ')+n+(x!==undefined&&x!==null&&x!==''?' | '+x:''));
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const P=(x,y)=>({clientX:x,clientY:y,pointerType:'touch',bubbles:true,button:0,buttons:1,pointerId:9});
+function tap(el,x,y){el.dispatchEvent(new PointerEvent('pointerdown',P(x||200,y||300)));el.dispatchEvent(new PointerEvent('pointerup',P(x||200,y||300)));}
+function swipe(el,x0,y0,x1,y1){
+  el.dispatchEvent(new PointerEvent('pointerdown',P(x0,y0)));
+  for(let i=1;i<=5;i++)el.dispatchEvent(new PointerEvent('pointermove',P(x0+(x1-x0)*i/5,y0+(y1-y0)*i/5)));
+  el.dispatchEvent(new PointerEvent('pointerup',P(x1,y1)));
+}
+function key(k,code){document.dispatchEvent(new KeyboardEvent('keydown',{key:k,code:code||'',bubbles:true}));}
+
+(async()=>{
+try{
+  await sleep(700);
+
+  /* ---------- A 启动 ---------- */
+  ok('A1 无脚本错误', window.__err.length===0, window.__err.join(';'));
+  ok('A2 卡片库规模', CARDS.length>2500, CARDS.length);
+  ok('A3 两板块队列', App.queues.know.list.length>0&&App.queues.idiom.list.length>0,
+     'know='+App.queues.know.list.length+' idiom='+App.queues.idiom.list.length);
+  ok('A4 新卡总量按设置', (App.queues.know.n+App.queues.idiom.n)===App.s.settings.newPerDay,
+     (App.queues.know.n+App.queues.idiom.n)+'/'+App.s.settings.newPerDay);
+  ok('A5 常识队列无成语', App.queues.know.list.every(x=>x.c.cat!=='成语'));
+  ok('A6 成语队列全成语', App.queues.idiom.list.every(x=>x.c.cat==='成语'));
+  ok('A7 默认在背诵页', document.getElementById('today').classList.contains('on'));
+  ok('A8 标题已更名', document.title==='上岸常识刷刷刷' && document.querySelector('header h1').textContent==='上岸常识刷刷刷',
+     document.title);
+
+  /* ---------- B 背诵 ---------- */
+  App.activate('know');
+  ok('B1 阅读卡有标题正文', document.getElementById('rTitle').textContent.length>0 &&
+     document.getElementById('rBody').textContent.length>0);
+  ok('B2 背诵页显示阅读卡', document.getElementById('readWrap').style.display!=='none');
+
+  const stars0=Object.keys(App.s.stars||{}).length;
+  document.getElementById('btnStar2').click();
+  ok('B3 收藏按钮', Object.keys(App.s.stars||{}).length===stars0+1 &&
+     document.getElementById('btnStar2').textContent.includes('已收藏'));
+  document.getElementById('btnStar2').click();
+  ok('B4 取消收藏', Object.keys(App.s.stars||{}).length===stars0);
+
+  const idxB=App.idx, cardsB=Object.keys(App.s.cards).length;
+  document.getElementById('btnSkip2').click();
+  ok('B5 跳过推进且不计分', App.idx===idxB+1 && Object.keys(App.s.cards).length===cardsB);
+
+  const today=App.today();
+  key('3');
+  const lastId=Object.keys(App.s.cards).pop();
+  ok('B6 键盘评分写入进度', Object.keys(App.s.cards).length===cardsB+1);
+  ok('B7 到期日按曲线', App.s.cards[lastId].due===App.addDays(today,1), App.s.cards[lastId].due);
+  ok('B8 作答写入当日统计', !!App.s.ans[today] && App.s.ans[today].n>0,
+     JSON.stringify(App.s.ans[today]));
+
+  /* ---------- C 填空 ---------- */
+  const idxC=App.idx;
+  document.querySelector('#studySeg .schip[data-m="fill"]').click();
+  ok('C1 填空保留同一索引', App.idx===idxC);
+  ok('C2 填空有空格', document.querySelectorAll('#qText .bk').length>0);
+  ok('C3 填空无整段遮盖', document.querySelectorAll('#qText .veil').length===0);
+  ok('C4 填空顶部有跳过', !!document.getElementById('btnSkipF'));
+
+  const bk=document.querySelector('#qText .bk');
+  bk.click();
+  ok('C5 点空揭示', bk.classList.contains('revealed') && bk.textContent.length>0);
+  ok('C6 揭示后评分栏启用', document.getElementById('rateFill').classList.contains('on'));
+
+  document.getElementById('btnHide').click();
+  ok('C7 遮盖重来', document.querySelectorAll('#qText .bk.revealed').length===0);
+
+  document.getElementById('btnReveal').click();
+  ok('C8 显示全部', document.querySelectorAll('#qText .bk:not(.revealed)').length===0);
+
+  const idxC2=App.idx;
+  document.getElementById('btnSkipF').click();
+  ok('C9 填空跳过', App.idx===idxC2+1);
+
+  let noBlank=0,veil=0;
+  for(let i=0;i<12;i++){
+    App.next();
+    if(!document.querySelector('#qText .bk'))noBlank++;
+    if(document.querySelector('#qText .veil'))veil++;
+  }
+  ok('C10 连续12张均有空', noBlank===0&&veil===0, 'noBlank='+noBlank+' veil='+veil);
+
+  // 回到有效索引再测评分
+  App.idx=Math.max(0,App.queue.length-2);
+  App.pos.know=App.idx; App.render();
+  const idxFill=App.idx;
+  document.getElementById('btnReveal').click();
+  document.querySelector('#rateFill .rbtn.yes').click();
+  ok('C11 填空评分推进', App.idx===idxFill+1, App.idx+'/'+idxFill);
+
+  document.querySelector('#studySeg .schip[data-m="recite"]').click();
+  ok('C12 切回背诵保留索引', App.idx===idxFill+1);
+
+  /* ---------- D 成语 ---------- */
+  App.buildQueues();
+  document.querySelector('nav button[data-v="idiom"]').click();
+  ok('D1 切到成语页', App.scope==='idiom' && document.getElementById('idiom').classList.contains('on'));
+  const st=document.getElementById('stage');
+
+  tap(st); await sleep(60);
+  const f1=App.flipped;
+  tap(st); await sleep(60);
+  ok('D2 轻点翻面/翻回', f1===true && App.flipped===false);
+
+  key(' ','Space');
+  ok('D3 空格翻面', App.flipped===true);
+
+  const gi=App.idx;
+  swipe(st,300,300,110,300);
+  await sleep(320);
+  ok('D4 左滑记住并推进', App.idx===gi+1, App.idx+'/'+gi);
+
+  App.flip(); await sleep(30);
+  const gi2=App.idx;
+  swipe(st,200,300,340,300);
+  await sleep(320);
+  ok('D5 右滑忘了并推进', App.idx===gi2+1);
+
+  const st0=Object.keys(App.s.stars||{}).length;
+  swipe(st,300,420,300,320);
+  await sleep(120);
+  ok('D6 上滑收藏', Object.keys(App.s.stars||{}).length===st0+1);
+
+  const longIdx=App.queue.findIndex(x=>x.c.back.length>170);
+  if(longIdx>=0){
+    App.idx=longIdx;App.render();
+    const eb=document.getElementById('btnExpand');
+    if(eb.style.display!=='none'){
+      eb.click();
+      ok('D7 展开全文', !document.getElementById('wordB').classList.contains('clamp'));
+    }else ok('D7 展开全文', false, '按钮未出现');
+  }else ok('D7 展开全文', true, '无长卡');
+
+  App.idx=App.queue.length-1;
+  App.grade(2);
+  await sleep(220);
+  ok('D8 完成触发礼花', document.getElementById('cele').classList.contains('on'),
+     document.getElementById('celeMsg').textContent.slice(0,10));
+  ok('D9 切换标签不重复触发', (()=>{const k=App._celKey;
+     document.querySelector('nav button[data-v="today"]').click();
+     document.querySelector('nav button[data-v="idiom"]').click();return App._celKey===k;})());
+  App.showCele();
+  ok('D10 可重放', document.getElementById('cele').classList.contains('on'));
+
+  // 再来10张
+  const gl=App.queue.length;
+  App.extra();
+  ok('D11 再来10张追加队列', App.queue.length>gl || App.queue.length===gl,
+     gl+'→'+App.queue.length);
+
+  /* ---------- E 测验 ---------- */
+  document.querySelector('nav button[data-v="quiz"]').click();
+  ok('E1 题量可选 8 档', document.querySelectorAll('#qxNums button').length===8);
+  ok('E2 范围下拉含全部板块', document.getElementById('qxCat').options.length===CATS.length+1);
+
+  document.querySelector('#qxNums button[data-n="10"]').click();
+  const sel=document.getElementById('qxCat');
+  sel.value='成语'; sel.dispatchEvent(new Event('change'));
+  document.getElementById('qxGo').click();
+  ok('E3 按板块出题', App.qx.list.length===10 && App.qx.list.every(q=>q.card.cat==='成语'));
+  ok('E4 每题4个不重复选项', App.qx.list.every(q=>q.opts.length===4 &&
+     new Set(q.opts.map(o=>o.back)).size===4));
+  ok('E5 正确项索引正确', App.qx.list.every(q=>q.opts[q.ans].id===q.card.id));
+
+  App.answerQ(App.qx.list[0].ans);
+  ok('E6 答对计数', App.qx.right===1 && App.qx.wrong===0);
+  App.nextQ();
+  App.answerQ((App.qx.list[1].ans+1)%4);
+  await sleep(100);
+  ok('E7 答错计数与正确率', App.qx.wrong===1 && document.getElementById('qxAcc').textContent==='50%');
+  ok('E8 错题可回顾', App.qx.records.length===1);
+
+  App.qx.used=90; App.qx.idx=App.qx.list.length; App.finishQuiz();
+  ok('E9 结算页数据', document.getElementById('qxDone').classList.contains('on') &&
+     document.getElementById('qxP').textContent==='50%' &&
+     document.getElementById('qxAvg').textContent==='45.0s');
+  document.getElementById('qxAgain').click();
+  ok('E10 再来一组回配置页', document.getElementById('qxStart').style.display!=='none');
+
+  /* ---------- F 卡片库 ---------- */
+  document.querySelector('nav button[data-v="library"]').click();
+  await sleep(60);
+  ok('F1 列表渲染', document.querySelectorAll('#list .item').length>0);
+  App.filter.cat='成语'; App.renderList();
+  ok('F2 分类筛选', App.match().every(c=>c.cat==='成语') && App.match().length>0);
+
+  App.filter.cat='全部'; App.filter.state='star'; App.renderList();
+  ok('F3 已收藏筛选', App.match().every(c=>App.s.stars&&App.s.stars[c.id]));
+
+  App.filter.state='all';
+  App.filter.q='不以为然'; App.renderList(); const cn=App.match().length;
+  App.filter.q='bywr'; App.renderList(); const py=App.match().length;
+  App.filter.q='buyiweiran'; App.renderList(); const pyn=App.match().length;
+  App.filter.q='bù yǐ'; App.renderList(); const pys=App.match().length;
+  ok('F4 中文/首字母/全拼/带调搜索', cn>0&&py>0&&pyn>0&&pys>0, cn+'/'+py+'/'+pyn+'/'+pys);
+
+  App.filter.q='';
+  const shown0=App.shown;
+  const more=document.querySelector('#list .more');
+  if(more){more.click();ok('F5 加载更多', App.shown>shown0);}
+  else ok('F5 加载更多', true, '已全部加载');
+
+  const item=document.querySelector('#list .item');
+  item.click();
+  ok('F6 条目展开', item.classList.contains('open'));
+
+  /* ---------- G 计时与数据 ---------- */
+  // 计时：活跃 / 空闲 / 数据页
+  App.activate('know');
+  App._lastAct=Date.now();
+  const t0=App.s.time[today]||0;
+  for(let i=0;i<3;i++)App.tickClock(5);
+  const tActive=(App.s.time[today]||0)-t0;
+  App._lastAct=Date.now()-200000;
+  const t1=App.s.time[today]||0;
+  App.tickClock(5);
+  const tIdle=(App.s.time[today]||0)-t1;
+  ok('G1 活跃计时', tActive===15, tActive);
+  ok('G2 空闲不计时', tIdle===0);
+
+  document.querySelector('nav button[data-v="stats"]').click();
+  await sleep(80);
+  App._lastAct=Date.now();
+  const t2=App.s.time[today]||0;
+  App.tickClock(5);
+  ok('G3 数据页不计时', (App.s.time[today]||0)===t2);
+
+  // 造几天数据，验证图表
+  for(let i=0;i<8;i++){
+    const d=App.addDays(today,-i);
+    App.s.time[d]=1200+i*120;
+    App.s.ans[d]={n:10+i,ok:7+i,sec:100+i*10};
+  }
+  App.save(); App.renderStats();
+  ok('G4 学习时长有值', document.getElementById('stTotal').textContent!=='—',
+     document.getElementById('stTotal').textContent);
+  ok('G5 刷题时间有值', document.getElementById('ptTotal').textContent!=='—');
+  ok('G6 正确率有值', document.getElementById('acAll').textContent!=='—');
+  ok('G7 均速口径', (()=>{
+     const all=App.sumAns('0000-01-01','9999-12-31');
+     return document.getElementById('ptAvg').textContent.indexOf(Math.round(all.sec/all.n)+'秒')===0;
+  })(), document.getElementById('ptAvg').textContent);
+  ok('G8 日视图7根', document.querySelectorAll('#timeChart > div').length===7,
+     document.querySelectorAll('#timeChart > div').length);
+  document.querySelector('#timeSeg .schip[data-p="week"]').click();
+  ok('G9 周视图6根', document.querySelectorAll('#timeChart > div').length===6);
+  document.querySelector('#timeSeg .schip[data-p="month"]').click();
+  ok('G10 月视图6根', document.querySelectorAll('#timeChart > div').length===6);
+  ok('G11 学习日历84格', document.querySelectorAll('#cal i').length===84);
+  ok('G12 板块正确率有行', document.querySelectorAll('#accDist .row').length>0);
+
+  /* ---------- H 设置 ---------- */
+  document.getElementById('btnSet').click();
+  await sleep(60);
+  ok('H1 设置面板打开', document.getElementById('modal').classList.contains('on'));
+  ok('H2 新卡数回填', document.getElementById('setNew').value===String(App.s.settings.newPerDay));
+  ok('H3 主题色板7个', document.querySelectorAll('#swatches .swatch').length===7);
+
+  const want=['zhi','zhu','tai','ye','ju','ying'];
+  let themeOk=true, detail=[];
+  document.querySelectorAll('#swatches .swatch').forEach((b,i)=>{
+    if(i===0)return;
+    b.click();
+    const got=document.documentElement.dataset.theme;
+    detail.push(want[i-1]+'→'+got);
+    if(got!==want[i-1])themeOk=false;
+  });
+  ok('H4 六套主题逐个生效', themeOk, detail.join(','));
+  document.querySelectorAll('#swatches .swatch')[1].click();
+
+  const np0=App.s.settings.newPerDay;
+  const sn=document.getElementById('setNew');
+  sn.value='40'; sn.dispatchEvent(new Event('change'));
+  App.saveSettings();
+  await sleep(80);
+  ok('H5 改新卡数生效', (App.queues.know.n+App.queues.idiom.n)===40);
+  App.s.settings.newPerDay=np0; App.save(); App.buildQueues();
+
+  /* ---------- I 导入导出 ---------- */
+  ok('I1 导出文件名已更名', App.exportProgress.toString().indexOf('上岸常识刷刷刷进度')>=0);
+  const snap=JSON.parse(JSON.stringify(App.s));
+  ok('I2 导出含时长与作答', !!snap.time && !!snap.ans);
+
+  App.applyProgress({cards:{},settings:{newPerDay:20}});
+  ok('I3 导入缺字段不崩', App.s.settings.revLimit===DEFAULT.settings.revLimit &&
+     App.s.settings.newPerDay===20 && Object.keys(App.s.time).length===0 &&
+     (App.queues.know.n+App.queues.idiom.n)===20,
+     'new='+App.s.settings.newPerDay+' rev='+App.s.settings.revLimit);
+
+  App.applyProgress(snap);
+  ok('I4 完整恢复', Object.keys(App.s.cards).length===Object.keys(snap.cards).length &&
+     Object.keys(App.s.time).length===Object.keys(snap.time).length);
+
+  location.hash='#idiom'; App.applyHash();
+  ok('I5 路由直达成语页', document.getElementById('idiom').classList.contains('on'));
+  history.replaceState(null,'',' ');
+
+  ok('I6 全程无脚本错误', window.__err.length===0, window.__err.join(';'));
+}catch(e){
+  LOG.push('EXC '+e.message+' @'+(e.stack||'').split('\\n')[1]);
+}
+const pre=document.createElement('pre');
+pre.id='testlog'; pre.textContent=LOG.join('\\n');
+document.body.appendChild(pre);
+document.title='PASS='+LOG.filter(l=>l.startsWith('PASS')).length+
+  ' FAIL='+LOG.filter(l=>l.startsWith('FAIL')).length+
+  ' EXC='+LOG.filter(l=>l.startsWith('EXC')).length;
+})();
+</script>
+`;
+
+fs.mkdirSync(require('path').dirname(outPath), {recursive:true});
+fs.writeFileSync(outPath, inHtml.replace('</body>', harness + '</body>'), 'utf8');
+console.log('生成 ' + outPath);

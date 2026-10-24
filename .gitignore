@@ -1,0 +1,18 @@
+# macOS
+.DS_Store
+
+# 原始教材：版权原因不入库
+raw/
+
+# 构建产物 / 发布副本 / 导出
+dist/
+outputs/
+*.genie
+
+# 运行时状态（个人进度）
+data/issued.json
+data/progress.json
+
+# Python
+__pycache__/
+*.pyc
