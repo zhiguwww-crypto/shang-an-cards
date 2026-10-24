@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 生成自检页面：把 index.html 复制一份，注入 107 项断言，输出到 outputs/selftest.html
+ * 生成自检页面：把 index.html 复制一份，注入 117 项断言，输出到 outputs/selftest.html
  * 由 test.sh 调用，配合无头 Chrome 运行。
  */
 const fs = require('fs');
@@ -393,6 +393,56 @@ try{
   ok('G14 无队列时归零', document.getElementById('ringTxt').textContent==='0%');
   App.updateRing(12,12);
   ok('G15 满进度 100%', document.getElementById('ringTxt').textContent==='100%');
+
+  /* ---------- L 列举分段 ---------- */
+  ok('L1 分段函数存在', typeof splitEnum==='function' && typeof cnNum==='function');
+  const neg=['1.琴琴发明于伏羲时代，为五弦之琴。','瓷器烧成温度达到1200°C以上，白度也达到了70%。',
+             '第1.节讲这个，第2.节讲那个。','会议决定（2024）（2025）两次拨款。',
+             '马克思生于1818年，逝世于1883年。','唐代三绝：李白诗歌、裴旻剑舞、张旭草书。'];
+  ok('L2 正文里的数字不误判', neg.every(t=>splitEnum(t)===null));
+  const pos=['（1）割让香港岛；（2）赔款；（3）五口通商。','①宪法；②法律；③行政法规；④地方性法规。',
+             '一、政治原因；二、抵御外族；三、经济重心转移。','1）琴2）棋3）书4）画，四艺也。'];
+  ok('L3 四类序号都能分段', pos.every(t=>{const s=splitEnum(t);return !!s&&s.filter(x=>x.n).length>=3}));
+
+  const enumCards=CARDS.filter(c=>splitEnum(c.back));
+  ok('L4 真实数据命中量', enumCards.length>=100, enumCards.length+' 张');
+  ok('L5 编号严格递增', enumCards.every(c=>{
+    const s=splitEnum(c.back).filter(x=>x.n);
+    for(let i=1;i<s.length;i++) if(s[i].n<=s[i-1].n) return false;
+    return true;
+  }));
+  ok('L6 分段不丢原文', enumCards.every(c=>{
+    const s=splitEnum(c.back);
+    return s.every(x=>c.back.indexOf(x.lead||x.t)>=0);
+  }));
+
+  App.activate('know');
+  const qi=App.queue.findIndex(x=>enumCards.some(e=>e.id===x.c.id));
+  if(qi>=0){
+    App.idx=qi; App.pos.know=qi; App.render();
+    const its=[...document.querySelectorAll('#rBody .it')];
+    ok('L7 背诵页分段渲染', its.length>=2 && its.every(it=>it.querySelector('i')&&it.querySelector('span').textContent.length>0),
+       its.length+' 条 · 编号 '+its.map(x=>x.querySelector('i').textContent).join(','));
+    document.querySelector('#studySeg .schip[data-m="fill"]').click();
+    await sleep(80);
+    const fbk=document.querySelectorAll('#qText .bk').length, fit=document.querySelectorAll('#qText .it').length;
+    ok('L8 填空模式空格不丢', (fbk>0)||(fit>0), '空格 '+fbk+' · 条目 '+fit);
+    document.querySelector('#studySeg .schip[data-m="recite"]').click();
+  }else ok('L7 背诵页分段渲染', true, '今日队列暂无列举卡');
+  ok('L9 成语卡背面也可分段', (()=>{
+    const t=CARDS.find(c=>c.cat==='成语'&&splitEnum(c.back));
+    if(!t)return true;
+    const el=document.createElement('div');
+    App.paintEnum(el,t.back);
+    return el.querySelectorAll('.it').length>=2;
+  })());
+  ok('L10 非列举卡保持整段', (()=>{
+    const plain=CARDS.find(c=>!splitEnum(c.back)&&c.back.length>20);
+    const el=document.createElement('div');
+    App.paintEnum(el,plain.back);
+    return el.textContent===plain.back && !el.classList.contains('enum') &&
+           el.querySelectorAll('.it').length===0;
+  })());
 
   /* ---------- H 设置 ---------- */
   document.getElementById('btnSet').click();
