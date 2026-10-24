@@ -1123,9 +1123,31 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
 <div class="toast" id="toast"></div>
 
 <script>
-const CARDS = __CARDS__;
+const RAW_CARDS = __CARDS__;
 const CATS = __CATS__;
-const QUIZ = __QUIZ__;
+const CARDS = RAW_CARDS.map(r=>({
+  id:r[0], cat:CATS[r[1]]||'其他', front:r[2], back:r[3],
+  py:r[4]||'', pyi:r[5]||'', pyn:r[6]||'', example:r[7]||'', src:r[8]||''
+}));
+const QUIZ = __QUIZ__;            // {cardId: [[start,end],...]}，偏移量指向 back
+const _qCache = new Map();
+function quizOf(c){                // 按需把偏移量还原成「带占位符的文本 + 答案」
+  const sp = QUIZ[c.id];
+  if(!sp || !sp.length) return null;
+  let q = _qCache.get(c.id);
+  if(q) return q;
+  let t='', prev=0; const a=[];
+  for(let i=0;i<sp.length;i++){
+    const s=sp[i][0], e=sp[i][1];
+    t += c.back.slice(prev,s) + '__' + i + '__';
+    a.push(c.back.slice(s,e));
+    prev = e;
+  }
+  t += c.back.slice(prev);
+  q = {t, a};
+  _qCache.set(c.id, q);
+  return q;
+}
 </script>
 <script>
 const KEY='zhiche_srs_v2';
@@ -2038,7 +2060,7 @@ const App={
     const item=this.queue[this.idx];
     if(!item)return;
     const c=item.c;
-    const q=QUIZ[c.id];
+    const q=quizOf(c);
 
     // 没有挖空数据的卡直接跳过（不做整段遮盖）
     if(!q){
@@ -2080,7 +2102,7 @@ const App={
 
   revealBlank(sp){
     const item=this.queue[this.idx];if(!item)return;
-    const q=QUIZ[item.c.id];if(!q)return;
+    const q=quizOf(item.c);if(!q)return;
     const a=q.a[+sp.dataset.i];
     sp.classList.add('revealed');
     sp.textContent=a;
@@ -2090,7 +2112,7 @@ const App={
 
   revealFill(){
     const item=this.queue[this.idx];if(!item)return;
-    const q=QUIZ[item.c.id];
+    const q=quizOf(item.c);
     if(q)[...document.querySelectorAll('#qText .bk')].forEach(sp=>this.revealBlank(sp));
     document.getElementById('rateFill').classList.add('on');
   },

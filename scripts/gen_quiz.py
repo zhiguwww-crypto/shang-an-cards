@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""为每张卡生成挖空题：quiz.json = {cardId: {"t": "带 __0__ 占位符的文本", "a": ["答案"]}}
+"""为每张卡生成挖空题。
+
+输出格式（紧凑）：quiz.json = {cardId: [[start, end], ...]}
+偏移量指向该卡 back 文本，前端按需切片重建「带 __i__ 占位符的文本 + 答案」，
+避免把整段正文在 quiz.json 里重复存一遍（省约 200KB）。
 
 策略：按优先级收集可挖片段，保证每张卡至少 1 个空。
 A 书名号 / 引号 / 年份 / 数量 / 顿号并列  → B 「」引用 → C “称为/即/是指”后的宾语
 → D 术语后缀（主义/制度/机关…）→ E 兜底：首个分句里最长的一段实词
 """
-import json, re
+import json, os, re
 
 ROOT = "/Users/zgwww/Workbuddy/编/职测知识卡"
 cards = json.load(open(f"{ROOT}/data/cards.json", encoding="utf-8"))
@@ -110,22 +114,21 @@ def collect(text, front, maxn=4):
         break
     return sorted(spans)
 
-def build_text(text, spans):
-    out, prev, ans = [], 0, []
-    for i, (s, e) in enumerate(spans):
-        out.append(text[prev:s])
-        out.append(f"__{i}__")
-        ans.append(text[s:e])
-        prev = e
-    out.append(text[prev:])
-    return "".join(out), ans
+def norm_spans(spans):
+    """去掉重叠与空片段，保证升序且互不覆盖"""
+    out = []
+    for s, e in sorted(spans):
+        if e <= s: continue
+        if out and s < out[-1][1]: continue
+        out.append([s, e])
+    return out
 
 quiz = {}
 stat = {"idiom": 0, "knowledge": 0, "skip": 0}
 
 for c in cards:
     cid, cat = c["id"], c["cat"]
-    text, ans = "", []
+    text, ans, spans = "", [], []
 
     # 成语有独立的翻卡页，不参与填空；只给常识板块生成挖空
     if cat == "成语":
@@ -135,11 +138,9 @@ for c in cards:
         body = c["back"]
         n = 3 if len(body) < 90 else 4
         spans = collect(body, c["front"], n)
-        if spans:
-            text, ans = build_text(body, spans)
 
-    if text and ans:
-        quiz[cid] = {"t": text, "a": ans}
+    if spans:
+        quiz[cid] = norm_spans(spans)
         stat["idiom" if cat == "成语" else "knowledge"] += 1
     else:
         stat["skip"] += 1
@@ -148,7 +149,8 @@ json.dump(quiz, open(f"{ROOT}/data/quiz.json", "w", encoding="utf-8"),
           ensure_ascii=False, separators=(",", ":"))
 print("生成挖空题", len(quiz), stat)
 print("覆盖", f"{len(quiz)/len(cards):.1%}",
-      "平均空数", round(sum(len(v["a"]) for v in quiz.values()) / max(1, len(quiz)), 2))
+      "平均空数", round(sum(len(v) for v in quiz.values()) / max(1, len(quiz)), 2),
+      "体积", f"{os.path.getsize(f'{ROOT}/data/quiz.json')/1024:.0f}KB")
 
 # 抽查兜底卡
 import random
@@ -157,7 +159,8 @@ miss = [c for c in cards if c["id"] not in quiz]
 print("仍无挖空", len(miss))
 for c in miss[:8]:
     print("  ✗", c["front"][:20], "▸", c["back"][:60])
+byid = {c["id"]: c for c in cards}
 for k in random.sample(list(quiz), min(6, len(quiz))):
-    v = quiz[k]
-    print("\n—", v["t"][:110])
-    print("  答案:", " / ".join(v["a"]))
+    body = byid[k]["back"]
+    print("\n—", "…".join(body[s:e] for s, e in quiz[k])[:110])
+    print("  答案:", " / ".join(body[s:e] for s, e in quiz[k]))

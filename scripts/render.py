@@ -8,15 +8,20 @@ ROOT = "/Users/zgwww/Workbuddy/编/职测知识卡"
 cards = json.load(open(f"{ROOT}/data/cards.json", encoding="utf-8"))
 tpl = open(f"{ROOT}/templates/app.html", encoding="utf-8").read()
 
-# 瘦身：只保留前端需要的字段
-slim = [{"id": c["id"], "front": c["front"], "back": c["back"],
-         "example": c.get("example", ""), "cat": c["cat"],
-         "py": c.get("py", ""), "pyi": c.get("pyi", ""), "pyn": c.get("pyn", ""), "src": c.get("src", "")}
-        for c in cards]
-
+# 订单号优先的前端字段顺序，用数组代替对象省掉重复键名
 order = ["成语·手册", "成语·真题补充"]
 cnt = Counter(c["cat"] for c in cards)
 cats = [c for c in order if c in cnt] + [k for k, _ in cnt.most_common() if k not in order]
+cat_idx = {c: i for i, c in enumerate(cats)}
+
+slim = []
+for c in cards:
+    row = [c["id"], cat_idx[c["cat"]], c["front"], c["back"],
+           c.get("py", ""), c.get("pyi", ""), c.get("pyn", ""),
+           c.get("example", ""), c.get("src", "")]
+    while len(row) > 4 and row[-1] == "":   # 去掉行尾空字段
+        row.pop()
+    slim.append(row)
 
 payload = json.dumps(slim, ensure_ascii=False, separators=(",", ":"))
 catjson = json.dumps(cats, ensure_ascii=False)
