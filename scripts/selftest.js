@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 生成自检页面：把 index.html 复制一份，注入 119 项断言，输出到 outputs/selftest.html
+ * 生成自检页面：把 index.html 复制一份，注入 126 项断言，输出到 outputs/selftest.html
  * 由 test.sh 调用，配合无头 Chrome 运行。
  */
 const fs = require('fs');
@@ -195,6 +195,37 @@ try{
   App.showCele();
   ok('K6 可再次重放', document.getElementById('cele').classList.contains('on'));
   App.closeCele();
+
+  /* ---------- M 隐形可点区域 / 圆环交互 ---------- */
+  // 历史坑：.cele-c 无条件 pointer-events:auto，收起时（opacity:0）仍盖在屏幕中央吃点击，
+  // 点到里面隐形的「再看一次」就会莫名放礼花
+  const celeEl=document.getElementById('cele');
+  const hitC=document.elementFromPoint(window.innerWidth/2,window.innerHeight/2);
+  ok('M1 收起时祝福卡不吃点击', !celeEl.contains(hitC),
+     hitC?((hitC.className||hitC.id||hitC.tagName)+'').slice(0,24):'null');
+  const ringBtn=document.getElementById('ring');
+  ok('M2 圆环有指针光标', getComputedStyle(ringBtn).cursor==='pointer', getComputedStyle(ringBtn).cursor);
+  const rb2=ringBtn.getBoundingClientRect();
+  const hitR=document.elementFromPoint(rb2.left+rb2.width/2,rb2.top+rb2.height/2);
+  ok('M3 圆环命中区域就是圆环', ringBtn.contains(hitR), hitR?hitR.tagName:'null');
+  App.toggleRingPop(true);
+  ok('M4 点圆环出明细', document.getElementById('ringPop').classList.contains('on') &&
+     document.getElementById('ringPopS').textContent.indexOf('/')>0,
+     document.getElementById('ringPopS').textContent);
+  App.toggleRingPop(false);
+  ok('M5 再点收起', !document.getElementById('ringPop').classList.contains('on'));
+  App.showCele();
+  await sleep(60);
+  const cbtn=document.querySelector('.cele-btn');
+  const cb=cbtn.getBoundingClientRect();
+  const hitB=document.elementFromPoint(cb.left+cb.width/2,cb.top+cb.height/2);
+  ok('M6 弹出时卡内按钮恢复可点', celeEl.classList.contains('on')&&celeEl.contains(hitB),
+     hitB?((hitB.className||hitB.tagName)+'').slice(0,20):'null');
+  App.closeCele();
+  ok('M7 收起后按钮不再可点', (()=>{
+    const h=document.elementFromPoint(cb.left+cb.width/2,cb.top+cb.height/2);
+    return !celeEl.contains(h);
+  })());
 
   /* ---------- E 测验 ---------- */
   document.querySelector('nav button[data-v="quiz"]').click();

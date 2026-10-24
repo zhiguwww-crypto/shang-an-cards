@@ -66,16 +66,28 @@ header{
 /* .hstats div 优先级高于 .ring，会把圆环也变成 flex + baseline 对齐，数字被挤到左上角 */
 .hstats .ring{display:grid;place-items:center;align-items:center;justify-items:center;gap:0}
 .hstats b{font-family:var(--serif);font-size:16px;color:var(--accent);font-weight:600}
-.ring{width:34px;height:34px;flex:0 0 auto;position:relative;display:grid;place-items:center}
+.ring{width:34px;height:34px;flex:0 0 auto;position:relative;display:grid;place-items:center;
+  cursor:pointer;border-radius:50%}
 .ring svg{position:absolute;inset:0;transform:rotate(-90deg)}
 .ring circle{fill:none;stroke-width:2.6;stroke-linecap:round}
 .ring .bg{stroke:var(--paper-2)}
-.ring .fg{stroke:var(--accent);transition:stroke-dashoffset .5s cubic-bezier(.4,0,.2,1)}
+.ring .fg{stroke:var(--accent);transition:stroke-dashoffset .5s cubic-bezier(.4,0,.2,1),stroke .18s}
+.ring:hover .fg{stroke:var(--gold)}
+.ring:active{transform:scale(.94)}
 /* svg 是定位元素，按绘制顺序会盖住文字；用绝对居中 + z-index 双保险，保证数字在圆心 */
 .ring span{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:1;
   font-family:var(--serif);font-size:9px;font-weight:600;
   color:var(--ink-2);line-height:1;letter-spacing:-.2px;font-variant-numeric:tabular-nums;
-  white-space:nowrap}
+  white-space:nowrap;pointer-events:none}
+/* 圆环明细气泡：.hstats div 会波及所有后代 div，必须用更具体的选择器盖回去 */
+.hstats .ringpop{position:absolute;top:calc(100% + 9px);right:-6px;width:158px;
+  display:none;flex-direction:column;gap:4px;text-align:left;
+  background:var(--card);border:1px solid var(--line);border-radius:12px;
+  padding:11px 13px;box-shadow:var(--shadow-lg);z-index:60;cursor:default}
+.hstats .ringpop.on{display:flex;animation:pop .2s cubic-bezier(.2,.9,.3,1.1)}
+.hstats .ringpop b{font-family:var(--serif);font-size:12px;letter-spacing:.6px;color:var(--ink);font-weight:600}
+.hstats .ringpop span{font-size:10.5px;color:var(--ink-3);letter-spacing:.3px;line-height:1.6}
+.hstats .ringpop i{font-style:normal;font-size:9.5px;color:var(--ink-3);opacity:.75;letter-spacing:.4px}
 .icon-btn{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:var(--ink-3);transition:.18s;flex:0 0 auto}
 .icon-btn:hover{background:var(--paper-2);color:var(--ink)}
 .icon-btn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.7}
@@ -447,7 +459,8 @@ main{flex:1;min-height:0;position:relative}
 .cele-c{position:relative;max-width:min(88vw,320px);background:var(--card);border:1px solid var(--line);
   border-radius:20px;padding:26px 26px 20px;text-align:center;box-shadow:var(--shadow-lg);
   transform:scale(.9) translateY(8px);transition:transform .52s cubic-bezier(.2,.9,.3,1.15);
-  pointer-events:auto}
+  pointer-events:none}          /* 收起时必须不接点击，否则会成一张看不见却吃点击的卡 */
+.cele.on .cele-c{pointer-events:auto}
 .cele.on .cele-c{transform:none}
 /* 右上角关闭号：遮罩本身是 pointer-events:none，只有这张卡可点 */
 .cele-x{position:absolute;top:9px;right:9px;width:32px;height:32px;border-radius:50%;
@@ -465,7 +478,9 @@ main{flex:1;min-height:0;position:relative}
   color:var(--gold);opacity:.5;margin-bottom:2px}
 .cele-sub{font-size:10.5px;color:var(--ink-3);letter-spacing:1px;margin-bottom:16px}
 .cele-btn{font-size:10.5px;color:var(--ink-3);letter-spacing:1px;border:1px solid var(--line);
-  border-radius:20px;padding:5px 14px;pointer-events:auto;transition:.18s}
+  border-radius:20px;padding:5px 14px;transition:.18s}
+/* 只有弹层真正显示时才接点击：写在按钮上的 pointer-events:auto 会盖过父级的 none */
+.cele.on .cele-btn{pointer-events:auto}
 .cele-btn:hover{color:var(--ink);border-color:var(--ink-3)}
 @media(prefers-reduced-motion:reduce){
   .cele-c{transform:none;transition:none}
@@ -906,9 +921,14 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
   <div class="hstats">
     <div><b id="hToday">0</b>今日</div>
     <div><b id="hStreak">0</b>连续</div>
-    <div class="ring" title="今日进度">
+    <div class="ring" id="ring" title="今日进度" aria-label="今日进度，点击查看明细">
       <svg viewBox="0 0 34 34"><circle class="bg" cx="17" cy="17" r="14.5"/><circle class="fg" id="ringFg" cx="17" cy="17" r="14.5" stroke-dasharray="91.1" stroke-dashoffset="91.1"/></svg>
-      <span id="ringTxt">0</span>
+      <span id="ringTxt">0%</span>
+      <div class="ringpop" id="ringPop">
+        <b id="ringPopT">当前板块进度</b>
+        <span id="ringPopS">0 / 0 张</span>
+        <i id="ringPopI">再点一次圆环收起</i>
+      </div>
     </div>
     <button class="icon-btn" id="btnSet" title="设置">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 008 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 003.6 15a1.65 1.65 0 00-1.51-1H2a2 2 0 110-4h.09A1.65 1.65 0 003.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0020.4 9a1.65 1.65 0 001.51 1H22a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
@@ -1759,6 +1779,17 @@ const App={
     if(txt)txt.textContent=Math.round(pct*100)+'%';
     const ring=document.querySelector('.ring');
     if(ring)ring.title=(total?Math.round(pct*100)+'%':'0%')+' · 当前板块 '+(total?done:'0')+' / '+(total||0);
+    const s=document.getElementById('ringPopS');
+    if(s)s.textContent='已完成 '+(total?done:0)+' / '+(total||0)+' 张';
+    const i=document.getElementById('ringPopI');
+    if(i)i.textContent=total?('还剩 '+Math.max(0,total-done)+' 张，加油'):'今天这个板块没有待学的卡';
+  },
+
+  toggleRingPop(force){
+    const pop=document.getElementById('ringPop');
+    if(!pop)return;
+    const on=force!==undefined?force:!pop.classList.contains('on');
+    pop.classList.toggle('on',on);
   },
 
   next(){
@@ -1829,6 +1860,8 @@ const App={
     if(fm)fm.addEventListener('click',e=>{if(e.target.id==='fixModal')this.closeFix()});
     const db=document.getElementById('dropBar');
     if(db)db.addEventListener('click',e=>{e.stopPropagation();this.toggleDrop()});
+    const rg=document.getElementById('ring');
+    if(rg)rg.addEventListener('click',e=>{e.stopPropagation();this.toggleRingPop()});
     const dr=document.getElementById('dropReset');
     if(dr)dr.addEventListener('click',e=>{
       e.stopPropagation();
@@ -1838,6 +1871,8 @@ const App={
     document.addEventListener('click',e=>{
       const panel=document.getElementById('dropPanel');
       if(panel&&panel.classList.contains('on')&&!panel.contains(e.target))this.toggleDrop(false);
+      const pop=document.getElementById('ringPop');
+      if(pop&&pop.classList.contains('on')&&!pop.contains(e.target))this.toggleRingPop(false);
     });
     document.querySelectorAll('nav button').forEach(b=>{
       b.addEventListener('click',()=>{
