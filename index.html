@@ -63,15 +63,19 @@ header{
 .brand em{font-style:normal;font-size:10.5px;color:var(--ink-3);letter-spacing:1.5px;white-space:nowrap}
 .hstats{display:flex;align-items:center;gap:14px;margin-left:auto}
 .hstats div{display:flex;align-items:baseline;gap:4px;font-size:11px;color:var(--ink-2);white-space:nowrap}
+/* .hstats div 优先级高于 .ring，会把圆环也变成 flex + baseline 对齐，数字被挤到左上角 */
+.hstats .ring{display:grid;place-items:center;align-items:center;justify-items:center;gap:0}
 .hstats b{font-family:var(--serif);font-size:16px;color:var(--accent);font-weight:600}
 .ring{width:34px;height:34px;flex:0 0 auto;position:relative;display:grid;place-items:center}
 .ring svg{position:absolute;inset:0;transform:rotate(-90deg)}
 .ring circle{fill:none;stroke-width:2.6;stroke-linecap:round}
 .ring .bg{stroke:var(--paper-2)}
 .ring .fg{stroke:var(--accent);transition:stroke-dashoffset .5s cubic-bezier(.4,0,.2,1)}
-/* svg 是定位元素，按绘制顺序会盖住文字；必须把文字抬到上层，否则百分比被圆圈挡住 */
-.ring span{position:relative;z-index:1;font-family:var(--serif);font-size:9px;font-weight:600;
-  color:var(--ink-2);line-height:1;letter-spacing:-.2px;font-variant-numeric:tabular-nums}
+/* svg 是定位元素，按绘制顺序会盖住文字；用绝对居中 + z-index 双保险，保证数字在圆心 */
+.ring span{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:1;
+  font-family:var(--serif);font-size:9px;font-weight:600;
+  color:var(--ink-2);line-height:1;letter-spacing:-.2px;font-variant-numeric:tabular-nums;
+  white-space:nowrap}
 .icon-btn{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:var(--ink-3);transition:.18s;flex:0 0 auto}
 .icon-btn:hover{background:var(--paper-2);color:var(--ink)}
 .icon-btn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.7}

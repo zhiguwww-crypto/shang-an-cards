@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 生成自检页面：把 index.html 复制一份，注入 117 项断言，输出到 outputs/selftest.html
+ * 生成自检页面：把 index.html 复制一份，注入 119 项断言，输出到 outputs/selftest.html
  * 由 test.sh 调用，配合无头 Chrome 运行。
  */
 const fs = require('fs');
@@ -393,6 +393,15 @@ try{
   ok('G14 无队列时归零', document.getElementById('ringTxt').textContent==='0%');
   App.updateRing(12,12);
   ok('G15 满进度 100%', document.getElementById('ringTxt').textContent==='100%');
+  /* 圆环数字必须严严整整落在圆心：.hstats div 会把圆环覆盖成 flex+baseline，
+     历史上就是这么把数字挤到左上角的，这里锁住布局与居中 */
+  App.updateRing(3,12);
+  const ringEl=document.querySelector('.ring'), spanEl=document.getElementById('ringTxt');
+  const rr=ringEl.getBoundingClientRect(), ss=spanEl.getBoundingClientRect();
+  const dx=Math.abs((ss.left+ss.width/2)-(rr.left+rr.width/2));
+  const dy=Math.abs((ss.top+ss.height/2)-(rr.top+rr.height/2));
+  ok('G16 圆环是 grid 布局', getComputedStyle(ringEl).display==='grid', getComputedStyle(ringEl).display);
+  ok('G17 百分数在圆心', dx<=0.6&&dy<=0.6, '偏移 '+dx.toFixed(1)+','+dy.toFixed(1)+'px');
 
   /* ---------- L 列举分段 ---------- */
   ok('L1 分段函数存在', typeof splitEnum==='function' && typeof cnNum==='function');
