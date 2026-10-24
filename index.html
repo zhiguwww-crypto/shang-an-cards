@@ -86,6 +86,39 @@ main{flex:1;min-height:0;position:relative}
 .prow .fill{height:100%;width:0;background:linear-gradient(90deg,var(--gold),var(--accent));transition:width .5s cubic-bezier(.4,0,.2,1)}
 .prow .count{font-family:var(--serif);font-size:12px;color:var(--ink-2);white-space:nowrap;min-width:46px;text-align:right}
 
+/* 每日目标 */
+.goalrow{
+  flex:0 0 auto;display:flex;align-items:center;gap:8px;
+  width:100%;max-width:var(--maxw);margin:0 auto;padding:7px 22px 0;
+  font-size:10.5px;color:var(--ink-3);letter-spacing:.4px;
+}
+.goalrow .gbar{flex:1 1 auto;height:2px;background:var(--paper-2);border-radius:2px;overflow:hidden}
+.goalrow .gbar i{display:block;height:100%;width:0;background:var(--gold);
+  transition:width .45s cubic-bezier(.4,0,.2,1)}
+.goalrow b{font-family:var(--serif);font-size:11.5px;font-weight:600;color:var(--ink-2)}
+.goalrow .gtip{margin-left:2px;white-space:nowrap;color:var(--ink-3);opacity:.85}
+.goalrow.done{color:var(--green)}
+.goalrow.done .gbar i{background:var(--green)}
+.goalrow.done b{color:var(--green)}
+.goalrow.hide{display:none}
+
+/* 错题重练 / 纠错 */
+.qxretry{display:block;width:100%;max-width:460px;margin:16px auto 0;background:var(--ink);color:var(--on-ink);
+  border-radius:11px;padding:13px;font-size:13.5px;letter-spacing:1.5px;transition:.16s}
+.qxretry:hover{opacity:.88}
+.qxretry[hidden]{display:none}
+.qxempty{max-width:440px;margin:10px auto 0;font-size:11.5px;line-height:1.8;color:var(--ink-3);text-align:center}
+.fixta{width:100%;min-height:88px;border:1px solid var(--line);border-radius:10px;padding:11px;
+  font-family:inherit;font-size:13px;line-height:1.7;color:var(--ink);background:var(--card);
+  resize:vertical;margin-top:8px;outline:none}
+.fixta:focus{border-color:var(--ink-3)}
+.fixpre{font-size:12px;line-height:1.7;color:var(--ink-2);background:var(--paper-2);
+  border-radius:9px;padding:9px 11px;margin-top:8px;max-height:74px;overflow:auto}
+.fixcard{border:1px solid var(--line-2);border-radius:10px;padding:10px 12px;margin-bottom:9px;background:var(--card)}
+.fixcard b{font-family:var(--serif);font-size:13.5px;letter-spacing:1px}
+.fixcard p{font-size:11.5px;color:var(--ink-2);line-height:1.7;margin-top:4px;white-space:pre-wrap}
+.fixcard small{display:block;font-size:10px;color:var(--ink-3);margin-top:5px;letter-spacing:.5px}
+
 .stage{
   flex:1;min-height:0;width:100%;max-width:var(--maxw);margin:0 auto;
   display:flex;align-items:center;justify-content:center;padding:14px 22px 0;
@@ -245,6 +278,9 @@ main{flex:1;min-height:0;position:relative}
 
 /* ---------- 测验 ---------- */
 .qxstart{padding:40px 0;text-align:center}
+.qxs-hint{max-width:440px;margin:16px auto 14px;padding:0 4px;
+  font-size:11.5px;line-height:1.7;letter-spacing:.3px;color:var(--ink-3)}
+.qxs-hint b{color:var(--ink-2);font-weight:600}
 
 .qxbar{display:flex;align-items:center;gap:14px;padding:12px 14px;background:var(--card);
   border:1px solid var(--line);border-radius:10px;font-size:11.5px;color:var(--ink-2);margin-bottom:12px}
@@ -801,12 +837,18 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
       <div class="track"><div class="fill" id="fill"></div></div>
       <span class="count" id="queueCount">0 / 0</span>
     </div>
+    <div class="goalrow" id="goalRow">
+      <span id="goalText">今日目标 <b>0 / 60</b></span>
+      <span class="gbar"><i id="goalFill"></i></span>
+      <span class="gtip" id="goalTip"></span>
+    </div>
 
     <div class="readwrap" id="readWrap">
       <div class="qcard readcard">
         <div class="rtop">
           <span class="rtag" id="rTag">常识</span>
           <button class="mini" id="btnStar2">☆ 收藏</button>
+          <button class="mini" id="btnFix" title="这张卡内容有问题？记一笔">✎ 纠错</button>
           <button class="mini skip2" id="btnSkip2">跳过 ›</button>
         </div>
         <div class="qtitle" id="rTitle"></div>
@@ -975,6 +1017,7 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
           <div><b id="qxAvg">—</b><span>每题均速</span></div>
         </div>
         <div class="qxwrong" id="qxWrong"></div>
+        <button class="qxretry" id="qxRetry" hidden>只练这 0 道错题</button>
         <button class="again" id="qxAgain">再来一组</button>
       </div>
     </div>
@@ -1001,6 +1044,7 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
         <div class="kpi"><span>已掌握</span><b id="sMaster">0<i>张</i></b></div>
         <div class="kpi"><span>累计复习</span><b id="sReviews">0<i>次</i></b></div>
         <div class="kpi"><span>正确率</span><b id="sAcc">—</b></div>
+        <div class="kpi"><span>今日目标</span><b id="sGoal">—</b></div>
         <div class="kpi"><span>7 天内待复习</span><b id="sDue">0<i>张</i></b></div>
       </div>
       <div class="panel">
@@ -1066,8 +1110,10 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
         <div class="acts">
           <button onclick="App.exportProgress()">导出进度</button>
           <button onclick="App.importProgress()">导入进度</button>
+          <button onclick="App.copyFixes()">纠错记录（<span id="fixN">0</span>）</button>
           <button onclick="App.reset()">清空进度</button>
         </div>
+        <p class="metricNote">在背诵页看到内容有问题，点卡片右上角「✎ 纠错」记一笔；这里可以把记录一次性复制出来发我。</p>
       </div>
     </div>
   </section>
@@ -1109,6 +1155,14 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
         <option value="200">200 张</option><option value="300">300 张</option>
         <option value="500">500 张</option><option value="0">不限（全部到期）</option>
       </select></div>
+    <div class="field"><span>每日目标</span>
+      <select id="setGoal">
+        <option value="0">不设目标</option>
+        <option value="30">30 题</option><option value="50">50 题</option>
+        <option value="60">60 题</option><option value="80">80 题</option>
+        <option value="100">100 题</option><option value="120">120 题</option>
+        <option value="160">160 题</option><option value="200">200 题</option>
+      </select></div>
     <p class="setHint" id="setHint">—</p>
     <div class="field col">
       <span>配色主题</span>
@@ -1117,6 +1171,16 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
     <button class="sbtn primary" onclick="App.saveSettings()">保存</button>
     <p class="note" style="margin-top:14px">艾宾浩斯节奏：答对后间隔 1→2→4→7→15→30 天，答错立即回到 1 天。连续答对 4 次且跨过 15 天档，判定为掌握。</p>
     <button class="sbtn ghost" onclick="App.closeModal()">关闭</button>
+  </div>
+</div>
+
+<div class="modal" id="fixModal">
+  <div class="sheet">
+    <h3>卡片纠错</h3>
+    <div class="fixpre" id="fixPre"></div>
+    <textarea class="fixta" id="fixNote" placeholder="哪里不对？例如：释义少了后半句 / 分类应为法律 / 有错别字 …"></textarea>
+    <button class="sbtn primary" onclick="App.saveFix()">保存记录</button>
+    <button class="sbtn ghost" onclick="App.closeFix()">取消</button>
   </div>
 </div>
 
@@ -1152,7 +1216,8 @@ function quizOf(c){                // 按需把偏移量还原成「带占位符
 <script>
 const KEY='zhiche_srs_v2';
 const SCHEMA=1;   // 进度文件格式版本
-const DEFAULT={cards:{},log:{},stars:{},time:{},ans:{},settings:{newPerDay:30,revLimit:200,theme:'auto',cfgVer:3},created:null};
+const DEFAULT={cards:{},log:{},stars:{},time:{},ans:{},fixes:[],goalHit:null,
+  settings:{newPerDay:30,revLimit:200,dailyGoal:60,theme:'auto',cfgVer:3},created:null};
 
 const CONFIG={
   intervals:[0,1,2,4,7,15,30,60],   // 复习间隔（天）
@@ -1173,8 +1238,9 @@ const App={
   filter:{cat:'全部',q:'',state:'all'},
   shown:60,
   mode:'recite',
+  fixId:null,
   qxCfg:{n:20,cat:'all',order:'shuffle'},
-  qx:{list:[],idx:0,answered:false,right:0,wrong:0,startAt:0,timer:null,records:[],used:0},
+  qx:{list:[],idx:0,answered:false,right:0,wrong:0,startAt:0,timer:null,records:[],used:0,from:''},
 
   boot(){
     this.s=this.load();
@@ -1186,7 +1252,8 @@ const App={
       if((this.s.settings.theme||'auto')==='auto') this.applyTheme('auto');
     });
     this.paintSeg();
-    this.bind(); this.buildSearchIndex(); this.initQuizCfg(); this.buildChips(); this.renderList(); this.renderStats();
+    this.bind(); this.buildSearchIndex(); this.initQuizCfg(); this.buildChips(); this.renderList();
+    this.paintGoal(); this.renderStats();
     this.startClock();
     this.buildQueues(); this.applyHash();
   },
@@ -1233,6 +1300,15 @@ const App={
     '又一天，你和上岸之间近了一点。',
     '把这一天收好，明天继续。',
     '记住这件事本身，就已经很了不起。'
+  ],
+
+  CELE_GOAL:[
+    '今天的份额，你如约完成了。',
+    '说到做到，这一天就没有白过。',
+    '目标达成，剩下的时间留给自己。',
+    '又稳又准地走完了今天这一程。',
+    '你正在把「坚持」变成一件不需要用力的事。',
+    '今天到此为止也很好，明天见。'
   ],
 
   INTERVALS:CONFIG.intervals,
@@ -1512,6 +1588,10 @@ const App={
     document.getElementById('btnSkip2').addEventListener('click',()=>this.skip());
     document.getElementById('btnSkipF').addEventListener('click',()=>this.skip());
     document.getElementById('btnStar2').addEventListener('click',()=>this.starCard());
+    const bf=document.getElementById('btnFix');
+    if(bf)bf.addEventListener('click',()=>this.openFix());
+    const fm=document.getElementById('fixModal');
+    if(fm)fm.addEventListener('click',e=>{if(e.target.id==='fixModal')this.closeFix()});
     document.querySelectorAll('nav button').forEach(b=>{
       b.addEventListener('click',()=>{
         document.querySelectorAll('nav button').forEach(x=>x.classList.remove('on'));
@@ -1522,7 +1602,7 @@ const App={
         if(b.dataset.v==='idiom')this.activate('idiom');
         if(b.dataset.v==='stats')this.renderStats();
         if(b.dataset.v==='library'){this.buildStateChips();this.renderList();}
-        if(b.dataset.v==='quiz'&&!this.qx.list.length)this.showQxScreen('start');
+        if(b.dataset.v==='quiz'){ this.initQuizCfg(); if(!this.qx.list.length)this.showQxScreen('start'); }
         try{history.replaceState(null,'','#'+b.dataset.v)}catch(e){}
       });
     });
@@ -1578,20 +1658,26 @@ const App={
     document.querySelectorAll('#timeSeg .schip').forEach(b=>{
       b.addEventListener('click',()=>this.renderTime(b.dataset.p));
     });
-    ['setNew','setRev'].forEach(id=>{
+    ['setNew','setRev','setGoal'].forEach(id=>{
       const el=document.getElementById(id);
       if(el)el.addEventListener('change',()=>{
         this.s.settings.newPerDay=+document.getElementById('setNew').value;
         this.s.settings.revLimit=+document.getElementById('setRev').value;
+        const g=document.getElementById('setGoal');
+        if(g)this.s.settings.dailyGoal=+g.value;
         this.updateSetHint();
+        this.paintGoal();
       });
     });
     document.getElementById('qxNext').addEventListener('click',()=>this.nextQ());
+    const qr=document.getElementById('qxRetry');
+    if(qr)qr.addEventListener('click',()=>this.retryWrong());
     document.getElementById('qxAgain').addEventListener('click',()=>{
       clearInterval(this.qx.timer);
-      this.qx.list=[];document.getElementById('qxWrong').innerHTML='';
+      this.qx.list=[];this.qx.from='';document.getElementById('qxWrong').innerHTML='';
+      const r0=document.getElementById('qxRetry'); if(r0)r0.hidden=true;
       this.showQxScreen('start');
-      this.updateQxHint();
+      this.initQuizCfg();
     });
   },
 
@@ -1852,37 +1938,90 @@ const App={
     return a;
   },
 
+  /* ============ 出题池：全部 / 单板块 / 错题本 / 收藏 ============ */
+  wrongPool(){
+    return CARDS.filter(c=>{
+      const p=this.s.cards[c.id];
+      return p&&(p.wrong||0)>0&&!p.master;
+    });
+  },
+  starPool(){
+    const st=this.s.stars||{};
+    return CARDS.filter(c=>!!st[c.id]);
+  },
+  poolFor(cat){
+    if(cat==='__wrong__')return this.wrongPool();
+    if(cat==='__star__')return this.starPool();
+    if(cat==='all'||!cat)return CARDS.slice();
+    return CARDS.filter(c=>c.cat===cat);
+  },
+  catName(cat){
+    if(cat==='all')return '全部板块';
+    if(cat==='__wrong__')return '错题本';
+    if(cat==='__star__')return '已收藏';
+    return cat;
+  },
+
   initQuizCfg(){
     const sel=document.getElementById('qxCat');
     if(!sel)return;
     sel.innerHTML='<option value="all">全部板块（'+CARDS.length+' 张）</option>';
+    const wn=this.wrongPool().length, sn=this.starPool().length;
+    if(wn>0){
+      const o=document.createElement('option');
+      o.value='__wrong__'; o.textContent='错题本（'+wn+' 张） · 答错过的';
+      sel.appendChild(o);
+    }
+    if(sn>0){
+      const o=document.createElement('option');
+      o.value='__star__'; o.textContent='已收藏（'+sn+' 张）';
+      sel.appendChild(o);
+    }
     CATS.forEach(c=>{
       const cnt=CARDS.filter(x=>x.cat===c).length;
       const o=document.createElement('option');
       o.value=c;o.textContent=c+'（'+cnt+' 张）';
       sel.appendChild(o);
     });
+    // 当前选中的范围可能因清空错题本而消失，回落到全部
+    const has=[...sel.options].some(o=>o.value===this.qxCfg.cat);
+    if(!has)this.qxCfg.cat='all';
     sel.value=this.qxCfg.cat;
     this.updateQxHint();
   },
 
   updateQxHint(){
     const cfg=this.qxCfg;
-    const pool=cfg.cat==='all'?CARDS:CARDS.filter(c=>c.cat===cfg.cat);
+    const pool=this.poolFor(cfg.cat);
     const n=Math.min(cfg.n,pool.length);
     const el=document.getElementById('qxHint');
+    const go=document.getElementById('qxGo');
     if(!el)return;
-    el.textContent='本次 '+n+' 题 · 来自「'+(cfg.cat==='all'?'全部板块':cfg.cat)+'」· 每题平均约 6 秒';
+    if(!pool.length){
+      el.textContent=cfg.cat==='__wrong__'
+        ? '错题本还是空的：测一组，答错的卡会自动进来。'
+        : '这个范围还没有卡片，先收藏几张。';
+      if(go){ go.disabled=true; go.style.opacity='.45'; }
+      return;
+    }
+    if(go){ go.disabled=false; go.style.opacity=''; }
+    const isSpecial=(cfg.cat==='__wrong__'||cfg.cat==='__star__');
+    el.textContent='本次 '+n+' 题 · 来自「'+this.catName(cfg.cat)+'」'+
+      (isSpecial?'· 专练模式':'· 每题平均约 6 秒');
   },
 
   startQuiz(){
     const cfg=this.qxCfg;
-    let pool=cfg.cat==='all'?CARDS.slice():CARDS.filter(c=>c.cat===cfg.cat);
+    let pool=this.poolFor(cfg.cat);
+    if(!pool.length){ this.updateQxHint(); this.toast('这个范围还没有卡片'); return; }
     if(cfg.order==='shuffle')pool=this.shuffleArr(pool);
-    const picked=pool.slice(0,Math.min(cfg.n,pool.length));
-    const n=picked.length;
-    const pool2=picked;
-    this.qx.list=pool2.map(c=>{
+    this.buildQuiz(pool.slice(0,Math.min(cfg.n,pool.length)),cfg.cat);
+  },
+
+  buildQuiz(cards,fromCat){
+    if(!cards||!cards.length)return;
+    this.qx.from=fromCat||'';
+    this.qx.list=cards.map(c=>{
       const opts=[c];
       const same=this.shuffleArr(CARDS.filter(x=>x.id!==c.id&&x.back!==c.back&&x.cat===c.cat));
       for(const o of same){ if(opts.length>=4)break; if(!opts.some(x=>x.back===o.back)) opts.push(o); }
@@ -2021,8 +2160,27 @@ const App={
         wr.appendChild(m);
       }
     }
+    const rt=document.getElementById('qxRetry');
+    if(rt){
+      const n=this.qx.records.length;
+      rt.hidden=!n;
+      rt.textContent='只练这 '+n+' 道错题';
+    }
     this.showQxScreen('done');
     document.getElementById('quiz').scrollTop=0;
+    this.initQuizCfg();       // 错题本数量可能变了
+  },
+
+  /* 只练本组错题：用刚答错的卡重开一组 */
+  retryWrong(){
+    const cards=[];
+    const seen=new Set();
+    this.qx.records.forEach(r=>{
+      if(r&&r.card&&!seen.has(r.card.id)){ seen.add(r.card.id); cards.push(r.card); }
+    });
+    if(!cards.length){ this.toast('这组没有错题'); return; }
+    this.shuffleArr(cards);
+    this.buildQuiz(cards,'__wrong__');
   },
 
   bumpSRS(c, ok){
@@ -2171,6 +2329,61 @@ const App={
     const a=this.s.ans[t]||(this.s.ans[t]={n:0,ok:0,sec:0});
     a.n++; if(ok)a.ok++;
     a.sec=Math.round((a.sec||0)+Math.max(0,sec||0));
+    this.paintGoal();
+    this.checkGoal();
+  },
+
+  /* ============ 每日目标 ============ */
+  goalN(){
+    const a=(this.s.ans||{})[this.today()];
+    return (a&&a.n)||0;
+  },
+  goalVal(){
+    const g=this.s.settings&&this.s.settings.dailyGoal;
+    return g>0?g:0;
+  },
+  paintGoal(){
+    const row=document.getElementById('goalRow');
+    if(!row)return;
+    const g=this.goalVal();
+    if(!g){ row.classList.add('hide'); return; }
+    row.classList.remove('hide');
+    const n=this.goalN();
+    const pct=Math.min(100,g?Math.round(n/g*100):0);
+    row.classList.toggle('done',n>=g);
+    const txt=document.getElementById('goalText');
+    if(txt)txt.innerHTML='今日目标 <b>'+n+' / '+g+'</b>';
+    const fill=document.getElementById('goalFill');
+    if(fill)fill.style.width=pct+'%';
+    const tip=document.getElementById('goalTip');
+    if(tip)tip.textContent=n>=g?'✓ 已达成':'还差 '+Math.max(0,g-n)+' 题';
+  },
+  checkGoal(){
+    const g=this.goalVal();
+    if(!g)return;
+    const t=this.today();
+    if(this.goalN()<g)return;
+    if(this.s.goalHit===t)return;      // 每天只庆祝一次
+    this.s.goalHit=t;
+    this.save();
+    this.showGoalCele();
+  },
+  showGoalCele(){
+    const box=document.getElementById('cele');
+    const msg=document.getElementById('celeMsg');
+    const sub=document.getElementById('celeSub');
+    if(!box||!msg)return;
+    const list=this.CELE_GOAL||[];
+    msg.textContent=list.length?list[Math.floor(Math.random()*list.length)]:'今天的目标完成了。';
+    if(sub){
+      const se=this.session||{ok:0,total:0};
+      const acc=se.total?Math.round(se.ok/se.total*100):0;
+      sub.textContent='今日 '+this.goalVal()+' 题已达成'+(se.total?' · 本轮正确率 '+acc+'%':'');
+    }
+    box.classList.add('on');
+    this.runFireworks(3400);
+    clearTimeout(this._celT);
+    this._celT=setTimeout(()=>box.classList.remove('on'),3600);
   },
 
   isoOf(d){
@@ -2479,6 +2692,14 @@ const App={
     document.getElementById('sMaster').innerHTML=master+'<i>张</i>';
     document.getElementById('sReviews').innerHTML=reviews+'<i>次</i>';
     document.getElementById('sAcc').textContent=(right+wrong)>0?acc+'%':'—';
+    const sg=document.getElementById('sGoal');
+    if(sg){
+      const g=this.goalVal();
+      sg.innerHTML=g?(this.goalN()+'<i>/'+g+' 题</i>'):'—';
+    }
+    const fn=document.getElementById('fixN');
+    if(fn)fn.textContent=(this.s.fixes||[]).length;
+    this.paintGoal();
     this.updateHeader();
     this.renderCalendar();
 
@@ -2508,6 +2729,54 @@ const App={
       dist.appendChild(row);
     });
     this.renderMetrics();
+  },
+
+  /* ============ 卡片纠错（本地记录，可一键复制） ============ */
+  openFix(){
+    const item=this.queue&&this.queue[this.idx];
+    if(!item){ this.toast('先翻到一张卡'); return; }
+    this.fixId=item.c.id;
+    const pre=document.getElementById('fixPre');
+    if(pre)pre.textContent=item.c.front+'：'+item.c.back.slice(0,80)+(item.c.back.length>80?'…':'');
+    const ta=document.getElementById('fixNote');
+    if(ta)ta.value='';
+    document.getElementById('fixModal').classList.add('on');
+    setTimeout(()=>{ if(ta)ta.focus(); },180);
+  },
+  closeFix(){
+    document.getElementById('fixModal').classList.remove('on');
+    this.fixId=null;
+  },
+  saveFix(){
+    const ta=document.getElementById('fixNote');
+    const note=(ta&&ta.value||'').trim();
+    const c=CARDS.find(x=>x.id===this.fixId);
+    if(!c){ this.closeFix(); return; }
+    if(!note){ this.toast('写点什么再保存'); return; }
+    this.s.fixes=Array.isArray(this.s.fixes)?this.s.fixes:[];
+    this.s.fixes.push({id:c.id,cat:c.cat,front:c.front,note,at:this.today()});
+    this.save();
+    this.closeFix();
+    this.toast('已记录，可在数据页复制出来');
+    const fn=document.getElementById('fixN');
+    if(fn)fn.textContent=this.s.fixes.length;
+  },
+  copyFixes(){
+    const list=this.s.fixes||[];
+    if(!list.length){ this.toast('还没有纠错记录'); return; }
+    const txt=list.map((f,i)=>(i+1)+'. ['+f.cat+'] '+f.front+' → '+f.note).join('\n');
+    const done=()=>this.toast('已复制 '+list.length+' 条纠错');
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(done).catch(()=>this.fallbackCopy(txt,done));
+    }else this.fallbackCopy(txt,done);
+  },
+  fallbackCopy(txt,done){
+    try{
+      const ta=document.createElement('textarea');
+      ta.value=txt; ta.style.cssText='position:fixed;opacity:0;left:-9999px';
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+      document.body.removeChild(ta); done();
+    }catch(e){ this.toast('复制失败，请用「导出进度」'); }
   },
 
   exportProgress(){
@@ -2543,6 +2812,7 @@ const App={
     ['cards','log','stars','time','ans'].forEach(k=>{
       if(!st[k]||typeof st[k]!=='object')st[k]={};
     });
+    if(!Array.isArray(st.fixes))st.fixes=[];
     this.s=st;
     if(!this.s.created)this.s.created=this.today();
     this.save();
@@ -2616,13 +2886,18 @@ const App={
   },
 
   fillSettings(){
-    const ns=document.getElementById('setNew'),rs=document.getElementById('setRev');
+    const ns=document.getElementById('setNew'),rs=document.getElementById('setRev'),gs=document.getElementById('setGoal');
     if(!ns||!rs)return;
     const np=this.s.settings.newPerDay||30, rl=this.s.settings.revLimit||200;
     if(![...ns.options].some(o=>+o.value===np)) ns.add(new Option(np+' 张',np));
     ns.value=np;
     if(![...rs.options].some(o=>+o.value===rl)) rs.add(new Option(rl+' 张',rl));
     rs.value=rl;
+    if(gs){
+      const dg=this.s.settings.dailyGoal===undefined?60:this.s.settings.dailyGoal;
+      if(![...gs.options].some(o=>+o.value===dg)) gs.add(new Option(dg+' 题',dg));
+      gs.value=dg;
+    }
     this.updateSetHint();
   },
 
@@ -2640,15 +2915,21 @@ const App={
     const rl=this.s.settings.revLimit>0?this.s.settings.revLimit:due;
     const load=Math.min(due,rl)+Math.min(fresh,np);
     const days=np>0?Math.ceil(fresh/np):0;
+    const dg=this.s.settings.dailyGoal||0;
     el.innerHTML='今日可用：复习 <b>'+due+'</b> 张、未学 <b>'+fresh+'</b> 张<br>'+
-      '按当前设置今日负荷 <b>'+load+'</b> 张'+(days?'，剩余新卡约 '+days+' 天学完':'');
+      '按当前设置今日负荷 <b>'+load+'</b> 张'+(days?'，剩余新卡约 '+days+' 天学完':'')+
+      (dg?'<br>每日目标 <b>'+dg+'</b> 题（已练 '+this.goalN()+' 题）':'');
   },
 
   saveSettings(){
     this.s.settings.newPerDay=+document.getElementById('setNew').value;
     this.s.settings.revLimit=+document.getElementById('setRev').value;
+    const gs=document.getElementById('setGoal');
+    if(gs)this.s.settings.dailyGoal=+gs.value;
     this.applyTheme(this.s.settings.theme);
-    this.save();this.closeModal();this.buildQueues();this.toast('已保存');
+    this.save();this.closeModal();this.buildQueues();
+    this.paintGoal();
+    this.toast('已保存');
   },
   closeModal(){document.getElementById('modal').classList.remove('on')},
   openModal(){

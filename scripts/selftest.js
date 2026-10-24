@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 生成自检页面：把 index.html 复制一份，注入 78 项断言，输出到 outputs/selftest.html
+ * 生成自检页面：把 index.html 复制一份，注入 89 项断言，输出到 outputs/selftest.html
  * 由 test.sh 调用，配合无头 Chrome 运行。
  */
 const fs = require('fs');
@@ -169,7 +169,10 @@ try{
   /* ---------- E 测验 ---------- */
   document.querySelector('nav button[data-v="quiz"]').click();
   ok('E1 题量可选 8 档', document.querySelectorAll('#qxNums button').length===8);
-  ok('E2 范围下拉含全部板块', document.getElementById('qxCat').options.length===CATS.length+1);
+  const catOpts=[...document.getElementById('qxCat').options];
+  ok('E2 范围含全部板块与各分类',
+     catOpts.some(o=>o.value==='all')&&CATS.every(c=>catOpts.some(o=>o.value===c)),
+     catOpts.length+' 项');
 
   document.querySelector('#qxNums button[data-n="10"]').click();
   const sel=document.getElementById('qxCat');
@@ -194,6 +197,50 @@ try{
      document.getElementById('qxAvg').textContent==='45.0s');
   document.getElementById('qxAgain').click();
   ok('E10 再来一组回配置页', document.getElementById('qxStart').style.display!=='none');
+
+  /* ---------- J 错题本 / 每日目标 / 纠错 ---------- */
+  const wp=App.wrongPool();
+  ok('J1 错题本池=答错且未掌握', wp.length>0 && wp.every(c=>{
+     const p=App.s.cards[c.id]; return p&&p.wrong>0&&!p.master;
+  }), wp.length+' 张');
+  ok('J2 错题本选项出现在范围里',
+     [...document.getElementById('qxCat').options].some(o=>o.value==='__wrong__'));
+
+  App.qxCfg.cat='__wrong__'; App.qxCfg.n=10; App.updateQxHint();
+  document.getElementById('qxGo').click();
+  const wpIds=new Set(App.wrongPool().map(c=>c.id));
+  ok('J3 错题本专练只出错题', App.qx.list.length>0 && App.qx.list.every(q=>wpIds.has(q.card.id)),
+     App.qx.list.length+' 题');
+
+  const wrongCard=App.qx.list[0].card;
+  App.qx.records=[{card:wrongCard,picked:{back:'x'}}];
+  App.retryWrong();
+  ok('J4 只练这组错题', App.qx.list.length===1 && App.qx.list[0].card.id===wrongCard.id);
+
+  App.s.settings.dailyGoal=1; App.s.goalHit=null;
+  App.addAnswer(true,3);
+  await sleep(80);
+  ok('J5 达成目标落盘', App.s.goalHit===today, String(App.s.goalHit));
+  ok('J6 达成目标放礼花', document.getElementById('cele').classList.contains('on') &&
+     document.getElementById('goalRow').classList.contains('done'));
+  ok('J7 目标进度文案', document.getElementById('goalText').textContent.indexOf('/ 1')>0,
+     document.getElementById('goalText').textContent);
+  App.s.settings.dailyGoal=60; App.paintGoal();
+  ok('J8 目标可关闭/恢复', document.getElementById('goalText').textContent.indexOf('/ 60')>0);
+
+  App.qxCfg.cat='all';
+  document.querySelector('nav button[data-v="today"]').click();
+  App.pos.know=0; App.idx=0; App.render();
+  App.openFix();
+  ok('J9 纠错弹层打开', document.getElementById('fixModal').classList.contains('on'));
+  document.getElementById('fixNote').value='测试纠错内容';
+  const fx0=(App.s.fixes||[]).length;
+  App.saveFix();
+  await sleep(60);
+  ok('J10 纠错写入本机', (App.s.fixes||[]).length===fx0+1 &&
+     App.s.fixes[App.s.fixes.length-1].note==='测试纠错内容');
+  ok('J11 纠错计数显示', document.getElementById('fixN').textContent===String(fx0+1),
+     document.getElementById('fixN').textContent);
 
   /* ---------- F 卡片库 ---------- */
   document.querySelector('nav button[data-v="library"]').click();

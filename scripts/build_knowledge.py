@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""构建职测知识卡片库：成语 + 常识"""
+"""构建上岸常识卡片库：成语 + 常识"""
 import re, json, glob, os, unicodedata
 
 ROOT = "/Users/zgwww/Workbuddy/编/职测知识卡"
