@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 生成自检页面：把 index.html 复制一份，注入 101 项断言，输出到 outputs/selftest.html
+ * 生成自检页面：把 index.html 复制一份，注入 107 项断言，输出到 outputs/selftest.html
  * 由 test.sh 调用，配合无头 Chrome 运行。
  */
 const fs = require('fs');
@@ -177,6 +177,24 @@ try{
   App.extra();
   ok('D11 再来10张追加队列', App.queue.length>gl || App.queue.length===gl,
      gl+'→'+App.queue.length);
+
+  /* ---------- K 完成庆祝：烟花 + 一句话 + 关闭号 ---------- */
+  ok('K1 祝福卡右上角有关闭号', !!document.getElementById('celeX'));
+  App.showCele();
+  await sleep(120);
+  ok('K2 完成时放烟花并弹出一句话', document.getElementById('cele').classList.contains('on') &&
+     document.getElementById('celeMsg').textContent.length>4,
+     document.getElementById('celeMsg').textContent.slice(0,14));
+  ok('K3 烟花画布已启动', document.getElementById('fx').style.display!=='none');
+  document.getElementById('celeX').click();
+  ok('K4 点关闭号立即收起', !document.getElementById('cele').classList.contains('on') &&
+     document.getElementById('fx').style.display==='none');
+  App.showCele();
+  key('Escape');
+  ok('K5 Esc 也能收起', !document.getElementById('cele').classList.contains('on'));
+  App.showCele();
+  ok('K6 可再次重放', document.getElementById('cele').classList.contains('on'));
+  App.closeCele();
 
   /* ---------- E 测验 ---------- */
   document.querySelector('nav button[data-v="quiz"]').click();

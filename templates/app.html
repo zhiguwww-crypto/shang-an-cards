@@ -427,15 +427,25 @@ main{flex:1;min-height:0;position:relative}
 .cele{position:fixed;inset:0;z-index:901;display:grid;place-items:center;padding:24px;
   pointer-events:none;opacity:0;transition:opacity .4s ease}
 .cele.on{opacity:1}
-.cele-c{max-width:min(88vw,320px);background:var(--card);border:1px solid var(--line);
+.cele-c{position:relative;max-width:min(88vw,320px);background:var(--card);border:1px solid var(--line);
   border-radius:20px;padding:26px 26px 20px;text-align:center;box-shadow:var(--shadow-lg);
-  transform:scale(.9) translateY(8px);transition:transform .52s cubic-bezier(.2,.9,.3,1.15)}
+  transform:scale(.9) translateY(8px);transition:transform .52s cubic-bezier(.2,.9,.3,1.15);
+  pointer-events:auto}
 .cele.on .cele-c{transform:none}
+/* 右上角关闭号：遮罩本身是 pointer-events:none，只有这张卡可点 */
+.cele-x{position:absolute;top:9px;right:9px;width:32px;height:32px;border-radius:50%;
+  display:grid;place-items:center;background:var(--paper-2);color:var(--ink-3);
+  font-size:17px;line-height:1;font-family:var(--sans);font-weight:300;
+  transition:.16s;-webkit-tap-highlight-color:transparent}
+.cele-x:hover{color:var(--ink);background:var(--line)}
+.cele-x:active{transform:scale(.92)}
 .cele-seal{width:46px;height:46px;margin:0 auto 14px;border-radius:50%;
   border:1.4px solid var(--accent);color:var(--accent);display:grid;place-items:center;
   font-family:var(--serif);font-size:17px;letter-spacing:1px;opacity:.9}
-.cele-msg{font-family:var(--serif);font-size:16px;line-height:1.95;letter-spacing:1px;
-  color:var(--ink);margin-bottom:10px}
+.cele-msg{font-family:var(--serif);font-size:17px;line-height:2;letter-spacing:1px;
+  color:var(--ink);margin-bottom:10px;position:relative;padding:0 4px}
+.cele-msg::before{content:"“";display:block;font-family:var(--serif);font-size:30px;line-height:1;
+  color:var(--gold);opacity:.5;margin-bottom:2px}
 .cele-sub{font-size:10.5px;color:var(--ink-3);letter-spacing:1px;margin-bottom:16px}
 .cele-btn{font-size:10.5px;color:var(--ink-3);letter-spacing:1px;border:1px solid var(--line);
   border-radius:20px;padding:5px 14px;pointer-events:auto;transition:.18s}
@@ -1205,7 +1215,8 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
 
 <canvas id="fx" aria-hidden="true"></canvas>
 <div class="cele" id="cele" aria-hidden="true">
-  <div class="cele-c">
+  <div class="cele-c" role="dialog" aria-label="今日完成">
+    <button class="cele-x" id="celeX" aria-label="关闭">×</button>
     <div class="cele-seal">成</div>
     <p class="cele-msg" id="celeMsg"></p>
     <p class="cele-sub" id="celeSub"></p>
@@ -1698,10 +1709,13 @@ const App={
         try{history.replaceState(null,'','#'+b.dataset.v)}catch(e){}
       });
     });
+    const cx=document.getElementById('celeX');
+    if(cx)cx.addEventListener('click',e=>{e.stopPropagation();this.closeCele()});
     document.addEventListener('keydown',e=>{
       if(e.target.tagName==='INPUT')return;
       const active=document.querySelector('.view.on');
       if(!active||(active.id!=='today'&&active.id!=='idiom'))return;
+      if(e.key==='Escape'){ this.closeCele(); return; }
       if(e.code==='Space'){e.preventDefault();this.flip();return}
       const canGrade=(this.scope==='know')||this.flipped;
       if(e.key==='1'&&canGrade)this.grade(0);
@@ -2514,9 +2528,10 @@ const App={
       sub.textContent='今日 '+this.goalVal()+' 题已达成'+(se.total?' · 本轮正确率 '+acc+'%':'');
     }
     box.classList.add('on');
+    box.setAttribute('aria-hidden','false');
     this.runFireworks(3400);
     clearTimeout(this._celT);
-    this._celT=setTimeout(()=>box.classList.remove('on'),3600);
+    this._celT=setTimeout(()=>this.closeCele(),3600);
   },
 
   isoOf(d){
@@ -2711,9 +2726,25 @@ const App={
     sub.textContent='完成 '+(this.queue?this.queue.length:0)+' 张'+(se.total?' · 正确率 '+acc+'%':'');
 
     box.classList.add('on');
+    box.setAttribute('aria-hidden','false');
     this.runFireworks(3400);
     clearTimeout(this._celT);
-    this._celT=setTimeout(()=>box.classList.remove('on'),3600);
+    this._celT=setTimeout(()=>this.closeCele(),3600);
+  },
+
+  /* 右上角关闭号：立刻收起祝福卡，烟花也一起停 */
+  closeCele(){
+    const box=document.getElementById('cele');
+    if(box){ box.classList.remove('on'); box.setAttribute('aria-hidden','true'); }
+    clearTimeout(this._celT);
+    clearTimeout(this._fxStop);
+    if(this._fxRaf){ cancelAnimationFrame(this._fxRaf); this._fxRaf=0; }
+    const cv=document.getElementById('fx');
+    if(cv&&cv.getContext){
+      const ctx=cv.getContext('2d');
+      ctx.clearRect(0,0,cv.width,cv.height);
+      cv.style.display='none';
+    }
   },
 
   runFireworks(ms){
