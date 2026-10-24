@@ -77,20 +77,30 @@ header{
 .ring .fg{stroke:var(--accent);transition:stroke-dashoffset .5s cubic-bezier(.4,0,.2,1),stroke .18s}
 .ring:hover .fg{stroke:var(--gold)}
 .ring:active{transform:scale(.94)}
-/* svg 是定位元素，按绘制顺序会盖住文字；用绝对居中 + z-index 双保险，保证数字在圆心 */
-.ring span{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:1;
+/* 只作用于百分数那个 span：写成 .ring span 会把气泡里的文字也一起拽成绝对居中 */
+.ring .rp-pct{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:1;
   font-family:var(--serif);font-size:9px;font-weight:600;
   color:var(--ink-2);line-height:1;letter-spacing:-.2px;font-variant-numeric:tabular-nums;
   white-space:nowrap;pointer-events:none}
-/* 圆环明细气泡：.hstats div 会波及所有后代 div，必须用更具体的选择器盖回去 */
-.hstats .ringpop{position:absolute;top:calc(100% + 9px);right:-6px;width:158px;
-  display:none;flex-direction:column;gap:4px;text-align:left;
-  background:var(--card);border:1px solid var(--line);border-radius:12px;
-  padding:11px 13px;box-shadow:var(--shadow-lg);z-index:60;cursor:default}
+/* 圆环明细气泡：.hstats div / .hstats b 会波及所有后代 div/b，
+   必须逐项用更具体的选择器盖回去，否则纵向 flex 被基线对齐会互相重叠、
+   数字行还会被窄屏规则误当成「连续」藏掉 */
+.hstats .ringpop{position:absolute;top:calc(100% + 9px);right:-6px;width:160px;
+  display:none;flex-direction:column;align-items:stretch;gap:0;text-align:left;
+  white-space:normal;font-size:11px;color:var(--ink-2);
+  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:12px 15px 13px;box-shadow:var(--shadow-lg);z-index:60;cursor:default}
 .hstats .ringpop.on{display:flex;animation:pop .2s cubic-bezier(.2,.9,.3,1.1)}
-.hstats .ringpop b{font-family:var(--serif);font-size:12px;letter-spacing:.6px;color:var(--ink);font-weight:600}
-.hstats .ringpop span{font-size:10.5px;color:var(--ink-3);letter-spacing:.3px;line-height:1.6}
-.hstats .ringpop i{font-style:normal;font-size:9.5px;color:var(--ink-3);opacity:.75;letter-spacing:.4px}
+.hstats .ringpop .rp-t{font-size:10px;color:var(--ink-3);letter-spacing:1.6px}
+.hstats .ringpop .rp-n{display:flex;align-items:baseline;gap:2px;white-space:normal;
+  margin:10px 0 8px;padding-top:10px;border-top:1px dashed var(--line-2)}
+.hstats .ringpop .rp-n b{font-family:var(--serif);font-size:23px;font-weight:600;
+  color:var(--accent);line-height:1;letter-spacing:0}
+.hstats .ringpop .rp-n i{font-style:normal;font-size:12px;color:var(--ink-3);margin:0 2px 0 1px}
+.hstats .ringpop .rp-n em{font-style:normal;font-family:var(--serif);font-size:15px;
+  color:var(--ink-2);line-height:1}
+.hstats .ringpop .rp-n small{font-size:10px;color:var(--ink-3);margin-left:4px;letter-spacing:.5px}
+.hstats .ringpop .rp-s{font-size:10.5px;color:var(--ink-3);letter-spacing:.3px;line-height:1.65}
 .icon-btn{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:var(--ink-3);transition:.18s;flex:0 0 auto}
 .icon-btn:hover{background:var(--paper-2);color:var(--ink)}
 .icon-btn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.7}
@@ -813,11 +823,12 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
   header{gap:10px;padding-left:16px;padding-right:16px}
   .brand h1{font-size:15px;letter-spacing:1px}
   .hstats{gap:10px}
-  .hstats div:nth-child(2){display:none}
+  /* 必须用子代选择器：写成 .hstats div 会连圆环气泡里的 div 一起藏掉 */
+  .hstats > div:nth-child(2){display:none}
 }
 @media(max-width:350px){
   .brand h1{font-size:14px;letter-spacing:0}
-  .hstats div:first-child{display:none}
+  .hstats > div:first-child{display:none}
 }
 
 @media(max-width:820px){.grid-list{grid-template-columns:1fr}}
@@ -926,11 +937,11 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
     <div><b id="hStreak">0</b>连续</div>
     <div class="ring" id="ring" title="今日进度" aria-label="今日进度，点击查看明细">
       <svg viewBox="0 0 34 34"><circle class="bg" cx="17" cy="17" r="14.5"/><circle class="fg" id="ringFg" cx="17" cy="17" r="14.5" stroke-dasharray="91.1" stroke-dashoffset="91.1"/></svg>
-      <span id="ringTxt">0%</span>
+      <span class="rp-pct" id="ringTxt">0%</span>
       <div class="ringpop" id="ringPop">
-        <b id="ringPopT">当前板块进度</b>
-        <span id="ringPopS">0 / 0 张</span>
-        <i id="ringPopI">再点一次圆环收起</i>
+        <span class="rp-t">当前板块进度</span>
+        <div class="rp-n"><b id="rpDone">0</b><i>/</i><em id="rpTotal">0</em><small>张</small></div>
+        <span class="rp-s" id="ringPopS">今天这个板块没有待学的卡</span>
       </div>
     </div>
     <button class="icon-btn" id="btnSet" title="设置">
@@ -1783,9 +1794,10 @@ const App={
     const ring=document.querySelector('.ring');
     if(ring)ring.title=(total?Math.round(pct*100)+'%':'0%')+' · 当前板块 '+(total?done:'0')+' / '+(total||0);
     const s=document.getElementById('ringPopS');
-    if(s)s.textContent='已完成 '+(total?done:0)+' / '+(total||0)+' 张';
-    const i=document.getElementById('ringPopI');
-    if(i)i.textContent=total?('还剩 '+Math.max(0,total-done)+' 张，加油'):'今天这个板块没有待学的卡';
+    if(s)s.textContent=total?('还剩 '+Math.max(0,total-done)+' 张，加油'):'今天这个板块没有待学的卡';
+    const d1=document.getElementById('rpDone'), t1=document.getElementById('rpTotal');
+    if(d1)d1.textContent=total?done:0;
+    if(t1)t1.textContent=total||0;
   },
 
   toggleRingPop(force){

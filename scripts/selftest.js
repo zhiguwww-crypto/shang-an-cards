@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 生成自检页面：把 index.html 复制一份，注入 126 项断言，输出到 outputs/selftest.html
+ * 生成自检页面：把 index.html 复制一份，注入 128 项断言，输出到 outputs/selftest.html
  * 由 test.sh 调用，配合无头 Chrome 运行。
  */
 const fs = require('fs');
@@ -209,9 +209,11 @@ try{
   const hitR=document.elementFromPoint(rb2.left+rb2.width/2,rb2.top+rb2.height/2);
   ok('M3 圆环命中区域就是圆环', ringBtn.contains(hitR), hitR?hitR.tagName:'null');
   App.toggleRingPop(true);
+  const rpD=document.getElementById('rpDone'), rpT=document.getElementById('rpTotal');
   ok('M4 点圆环出明细', document.getElementById('ringPop').classList.contains('on') &&
-     document.getElementById('ringPopS').textContent.indexOf('/')>0,
-     document.getElementById('ringPopS').textContent);
+     rpD&&rpT&&+rpD.textContent>=0&&+rpT.textContent>=0&&
+     document.getElementById('ringPopS').textContent.length>3,
+     rpD.textContent+' / '+rpT.textContent+' 张 · '+document.getElementById('ringPopS').textContent);
   App.toggleRingPop(false);
   ok('M5 再点收起', !document.getElementById('ringPop').classList.contains('on'));
   App.showCele();
@@ -226,6 +228,27 @@ try{
     const h=document.elementFromPoint(cb.left+cb.width/2,cb.top+cb.height/2);
     return !celeEl.contains(h);
   })());
+  /* 坑：窄屏隐藏「连续」用的是 .hstats div:nth-child(2) 后代选择器，
+     会把圆环气泡里第 2 个子元素 .rp-n 也一并藏掉，必须写成 .hstats > div。
+     这里扫描全部样式表，禁止出现能渗透进气泡的 display:none 规则。 */
+  const leak=(()=>{
+    const bad=[];
+    const walk=rs=>{
+      for(const r of rs){
+        if(r.cssRules){ walk(r.cssRules); continue }
+        if(!r.selectorText||!r.style)continue;
+        const s=r.selectorText;
+        if(/\.hstats[^,>{]*\sdiv/.test(s)&&r.style.display==='none')bad.push(s);
+      }
+    };
+    for(const sh of document.styleSheets){ try{ walk(sh.cssRules) }catch(e){} }
+    return bad;
+  })();
+  ok('M8 窄屏隐藏规则不误伤气泡', leak.length===0, leak.join(' / '));
+  App.toggleRingPop(true);
+  const vis=['.rp-t','.rp-n','.rp-s'].map(s=>getComputedStyle(document.querySelector(s)).display);
+  ok('M9 气泡三行都可见', vis.every(v=>v!=='none'), vis.join(','));
+  App.toggleRingPop(false);
 
   /* ---------- E 测验 ---------- */
   document.querySelector('nav button[data-v="quiz"]').click();
