@@ -65,18 +65,23 @@ else:
     parent = boot["commit"]["sha"]
     print("空仓库，已创建占位提交", parent[:10])
 
-# 2) 逐文件上传 blob
-files = sh("git", "ls-files").split()
-print(f"上传 {len(files)} 个文件 → {REPO}")
+# 2) 逐文件上传 blob（保留可执行位：git ls-files -s 给出 100644 / 100755）
+entries = []
+for line in sh("git", "ls-files", "-s").splitlines():
+    meta, path = line.split("\t", 1)
+    mode = meta.split()[0]
+    entries.append((path, mode))
+
+print(f"上传 {len(entries)} 个文件 → {REPO}")
 tree = []
-for i, path in enumerate(files, 1):
+for i, (path, mode) in enumerate(entries, 1):
     raw = open(os.path.join(ROOT, path), "rb").read()
     blob = call("POST", f"{API}/git/blobs", {
         "content": base64.b64encode(raw).decode(),
         "encoding": "base64",
     })
-    tree.append({"path": path, "mode": "100644", "type": "blob", "sha": blob["sha"]})
-    print(f"  [{i:2d}/{len(files)}] {path}  {len(raw)/1024:.0f}KB")
+    tree.append({"path": path, "mode": mode, "type": "blob", "sha": blob["sha"]})
+    print(f"  [{i:2d}/{len(entries)}] {path}  {len(raw)/1024:.0f}KB")
 
 # 3) tree → commit → 移动 ref
 commit_msg = sh("git", "log", "-1", "--pretty=%B")
