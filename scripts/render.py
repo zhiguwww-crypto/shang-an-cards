@@ -4,7 +4,7 @@
 import json, os
 from collections import Counter
 
-ROOT = "/Users/zgwww/Workbuddy/编/职测知识卡"
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 cards = json.load(open(f"{ROOT}/data/cards.json", encoding="utf-8"))
 tpl = open(f"{ROOT}/templates/app.html", encoding="utf-8").read()
 

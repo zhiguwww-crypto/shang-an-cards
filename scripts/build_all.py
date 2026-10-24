@@ -31,7 +31,7 @@ def to_pinyin(word):
     except Exception:
         return ""
 
-ROOT = "/Users/zgwww/Workbuddy/编/职测知识卡"
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = f"{ROOT}/data"
 
 def load(p):

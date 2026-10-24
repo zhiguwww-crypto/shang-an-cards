@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """作业解析补充成语 + 手册缺失的核心速记卡"""
-import json
+import json, os
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 HW_IDIOMS = [
 ("七窍生烟","形容气愤或焦急到极点。"),
@@ -176,7 +178,7 @@ def main():
         out.append({"type": "idiom", "front": w, "back": d, "cat": "成语·真题补充", "src": "课后作业答案解析"})
     for t, b, c in CORE_CARDS + POLICY_CARDS:
         out.append({"type": "knowledge", "front": t, "back": b, "cat": c, "src": "核心速记"})
-    json.dump(out, open("/Users/zgwww/Workbuddy/编/职测知识卡/data/supplement.json", "w", encoding="utf-8"),
+    json.dump(out, open(f"{ROOT}/data/supplement.json", "w", encoding="utf-8"),
               ensure_ascii=False, indent=1)
     print("成语补充", len(HW_IDIOMS), "核心速记", len(CORE_CARDS))
 

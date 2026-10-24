@@ -3,7 +3,7 @@
 """构建上岸常识卡片库：成语 + 常识"""
 import re, json, glob, os, unicodedata
 
-ROOT = "/Users/zgwww/Workbuddy/编/职测知识卡"
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RAW  = f"{ROOT}/raw"
 
 # ---------- 文字清洗 ----------

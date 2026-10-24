@@ -12,7 +12,7 @@ A 书名号 / 引号 / 年份 / 数量 / 顿号并列  → B 「」引用 → C 
 """
 import json, os, re
 
-ROOT = "/Users/zgwww/Workbuddy/编/职测知识卡"
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 cards = json.load(open(f"{ROOT}/data/cards.json", encoding="utf-8"))
 
 PUNCT = r"，。；：、“”《》（）()【】「」\s"

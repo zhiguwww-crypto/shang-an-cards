@@ -4,7 +4,7 @@
 import json, os, sys
 from datetime import date, timedelta
 
-ROOT = "/Users/zgwww/Workbuddy/编/职测知识卡"
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 cards = json.load(open(f"{ROOT}/data/cards.json", encoding="utf-8"))
 prog_path = f"{ROOT}/data/progress.json"
 prog = json.load(open(prog_path, encoding="utf-8")) if os.path.exists(prog_path) else {}
