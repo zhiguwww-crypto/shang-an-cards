@@ -1129,7 +1129,17 @@ const QUIZ = __QUIZ__;
 </script>
 <script>
 const KEY='zhiche_srs_v2';
+const SCHEMA=1;   // 进度文件格式版本
 const DEFAULT={cards:{},log:{},stars:{},time:{},ans:{},settings:{newPerDay:30,revLimit:200,theme:'auto',cfgVer:3},created:null};
+
+const CONFIG={
+  intervals:[0,1,2,4,7,15,30,60],   // 复习间隔（天）
+  masterStreak:4,                    // 连续答对几次算掌握
+  maxAnswerSec:300,                  // 单题计时上限（秒）
+  idleMs:180000,                     // 多久无操作停止计时（毫秒）
+  clockTick:5,                       // 计时器步长（秒）
+  swipe:{ dist:70, fastSpeed:0.55, fastDist:26, up:60, dead:8 }
+};
 
 const App={
   s:null,queue:[],idx:0,flipped:false,
@@ -1154,7 +1164,7 @@ const App={
       if((this.s.settings.theme||'auto')==='auto') this.applyTheme('auto');
     });
     this.paintSeg();
-    this.bind(); this.initQuizCfg(); this.buildChips(); this.renderList(); this.renderStats();
+    this.bind(); this.buildSearchIndex(); this.initQuizCfg(); this.buildChips(); this.renderList(); this.renderStats();
     this.startClock();
     this.buildQueues(); this.applyHash();
   },
@@ -1177,7 +1187,7 @@ const App={
     }catch(e){ return structuredClone(DEFAULT); }
   },
   save(){
-    try{ localStorage.setItem(KEY,JSON.stringify(this.s)); }
+    try{ this.s.schema=SCHEMA; localStorage.setItem(KEY,JSON.stringify(this.s)); }
     catch(e){ this.toast('浏览器禁用了本地存储，进度无法保存'); }
   },
 
@@ -1203,8 +1213,8 @@ const App={
     '记住这件事本身，就已经很了不起。'
   ],
 
-  INTERVALS:[0,1,2,4,7,15,30,60],
-  MASTER_STREAK:4,
+  INTERVALS:CONFIG.intervals,
+  MASTER_STREAK:CONFIG.masterStreak,
 
   buildQueues(){
     this._celKey=null;
@@ -1440,7 +1450,7 @@ const App={
 
   grade(g,fast){
     if(this.idx>=this.queue.length)return;
-    const sec=this._qAt?Math.min(300,Math.round((Date.now()-this._qAt)/1000)):0;
+    const sec=this._qAt?Math.min(CONFIG.maxAnswerSec,Math.round((Date.now()-this._qAt)/1000)):0;
     const {c}=this.queue[this.idx],t=this.today();
     let p=this.s.cards[c.id];
     if(!p)p=this.s.cards[c.id]={lv:0,due:t,right:0,wrong:0,streak:0,seen:0,born:t};
@@ -1465,11 +1475,11 @@ const App={
     if(this.scope==='idiom'&&!fast){
       const card=document.getElementById('card');
       card.classList.add('leaving');
-      setTimeout(()=>{this.next();this.renderStats()},170);
+      setTimeout(()=>{this.next();this.touchStats()},170);
       return;
     }
     this.next();
-    this.renderStats();
+    this.touchStats();
   },
 
   bind(){
@@ -1505,8 +1515,12 @@ const App={
       if(e.key==='3'&&canGrade)this.grade(2);
       if(e.key==='s'||e.key==='S')this.skip();
     });
-    document.getElementById('q').addEventListener('input',e=>{
-      this.filter.q=e.target.value.trim();this.shown=60;this.renderList();
+    const qEl=document.getElementById('q');
+    qEl.addEventListener('input',e=>{
+      this.filter.q=e.target.value.trim();
+      this.shown=60;
+      clearTimeout(this._qT);
+      this._qT=setTimeout(()=>this.renderList(),120);
     });
     document.getElementById('btnSet').addEventListener('click',()=>this.openModal());
     document.getElementById('modal').addEventListener('click',e=>{if(e.target.id==='modal')this.closeModal()});
@@ -1588,7 +1602,7 @@ const App={
     stage.addEventListener('pointermove',e=>{
       if(!dragging)return;
       dx=e.clientX-sx;dy=e.clientY-sy;
-      if(!moved&&(Math.abs(dx)>8||Math.abs(dy)>8))moved=true;
+      if(!moved&&(Math.abs(dx)>CONFIG.swipe.dead||Math.abs(dy)>CONFIG.swipe.dead))moved=true;
       if(!moved)return;
       if(!lock)lock=Math.abs(dx)>Math.abs(dy)?'x':'y';
 
@@ -1634,7 +1648,7 @@ const App={
       }
       // 左右滑：评分（需先翻面）
       if(this.flipped&&lock==='x'){
-        if((ax>70&&ax>ay)||(speed>0.55&&ax>26&&ax>ay)){
+        if((ax>CONFIG.swipe.dist&&ax>ay)||(speed>CONFIG.swipe.fastSpeed&&ax>CONFIG.swipe.fastDist&&ax>ay)){
           reset();
           this.flyGrade(dx<0?2:0, dx<0?-1:1);
           return;
@@ -1670,7 +1684,7 @@ const App={
     else { this.s.stars[id]=Date.now(); on=true; this.toast('★ 已加入收藏'); }
     this.save();
     this.updateStarMark();
-    this.buildStateChips();
+    if(document.getElementById('library').classList.contains('on'))this.buildStateChips();
     if(this.scope==='know'){
       this._qAt=Date.now();
     const sb=document.getElementById('btnStar2');
@@ -1732,24 +1746,37 @@ const App={
     }).length;
   },
 
+  buildSearchIndex(){
+    this._idx=CARDS.map(c=>({
+      c,
+      blob:(c.front+' '+c.back+' '+(c.py||'')+' '+(c.pyi||'')+' '+(c.pyn||''))
+             .toLowerCase().replace(/\s+/g,'')
+    }));
+  },
+
   match(){
-    const q=this.filter.q.toLowerCase();
-    const st=this.s.cards;
-    return CARDS.filter(c=>{
-      if(this.filter.cat!=='全部'&&c.cat!==this.filter.cat)return false;
-      const p=st[c.id],k=this.filter.state;
-      if(k==='new'&&p)return false;
-      if(k==='master'&&!(p&&p.master))return false;
-      if(k==='learning'&&!(p&&!p.master))return false;
-      if(k==='wrong'&&!((p&&p.wrong)||0))return false;
-      if(k==='star'&&!(this.s.stars&&this.s.stars[c.id]))return false;
-      if(!q)return true;
-      const qn=q.replace(/\s/g,'');
-      return c.front.toLowerCase().includes(q)||c.back.toLowerCase().includes(q)
-        ||(c.py&&c.py.replace(/\s/g,'').includes(qn))
-        ||(c.pyi&&c.pyi.includes(qn))
-        ||(c.pyn&&c.pyn.includes(qn));
-    });
+    const st=this.s.cards,k=this.filter.state;
+    const qn=this.filter.q.toLowerCase().replace(/\s+/g,'');
+    const out=[];
+    const idx=this._idx||CARDS.map(c=>({c}));
+    for(let i=0;i<idx.length;i++){
+      const c=idx[i].c;
+      if(this.filter.cat!=='全部'&&c.cat!==this.filter.cat)continue;
+      const p=st[c.id];
+      if(k==='new'&&p)continue;
+      if(k==='master'&&!(p&&p.master))continue;
+      if(k==='learning'&&!(p&&!p.master))continue;
+      if(k==='wrong'&&!((p&&p.wrong)||0))continue;
+      if(k==='star'&&!(this.s.stars&&this.s.stars[c.id]))continue;
+      if(!qn) { out.push(c); continue; }
+      let blob=idx[i].blob;
+      if(blob===undefined){
+        blob=(c.front+' '+c.back+' '+(c.py||'')+' '+(c.pyi||'')+' '+(c.pyn||'')).toLowerCase().replace(/\s+/g,'');
+        idx[i].blob=blob;
+      }
+      if(blob.indexOf(qn)>=0)out.push(c);
+    }
+    return out;
   },
 
   renderList(){
@@ -1924,12 +1951,12 @@ const App={
     });
     if(ok){ this.qx.right++; }
     else { this.qx.wrong++; this.qx.records.push({card:q.card,picked:q.opts[i]}); }
-    const qsec=this._qAt?Math.min(300,Math.round((Date.now()-this._qAt)/1000)):0;
+    const qsec=this._qAt?Math.min(CONFIG.maxAnswerSec,Math.round((Date.now()-this._qAt)/1000)):0;
     this.addAnswer(ok,qsec);
     this.bumpSRS(q.card, ok);
     this.updateQxBar();
     document.getElementById('qxNext').style.display='';
-    this.renderStats();
+    this.touchStats();
   },
 
   nextQ(){
@@ -2095,7 +2122,7 @@ const App={
     const mark=()=>{this._lastAct=Date.now()};
     ['pointerdown','keydown','wheel','touchstart'].forEach(ev=>
       document.addEventListener(ev,mark,{passive:true}));
-    this._clock=setInterval(()=>this.tickClock(5),5000);
+    this._clock=setInterval(()=>this.tickClock(CONFIG.clockTick),CONFIG.clockTick*1000);
     document.addEventListener('visibilitychange',()=>{ if(document.hidden)this.save(); });
     window.addEventListener('beforeunload',()=>this.save());
   },
@@ -2104,7 +2131,7 @@ const App={
     if(document.hidden)return;
     const v=document.querySelector('.view.on');
     if(!v||v.id==='stats')return;                     // 数据页不计时
-    if(Date.now()-this._lastAct>180000)return;         // 3 分钟无操作不计时
+    if(Date.now()-this._lastAct>CONFIG.idleMs)return;         // 3 分钟无操作不计时
     this.gainTime(sec);
   },
 
@@ -2405,7 +2432,21 @@ const App={
     this._fxRaf=requestAnimationFrame(step);
   },
 
+  touchStats(){
+    this._statsDirty=true;
+    this.updateHeader();
+  },
+
+  updateHeader(){
+    document.getElementById('hToday').textContent=this.s.log[this.today()]||0;
+    let streak=0,d=this.today();
+    if(!this.s.log[d])d=this.addDays(d,-1);
+    while(this.s.log[d]){streak++;d=this.addDays(d,-1)}
+    document.getElementById('hStreak').textContent=streak;
+  },
+
   renderStats(){
+    this._statsDirty=false;
     const st=this.s.cards,ids=Object.keys(st);
     const master=ids.filter(k=>st[k].master).length;
     let right=0,wrong=0,reviews=0;
@@ -2416,13 +2457,8 @@ const App={
     document.getElementById('sMaster').innerHTML=master+'<i>张</i>';
     document.getElementById('sReviews').innerHTML=reviews+'<i>次</i>';
     document.getElementById('sAcc').textContent=(right+wrong)>0?acc+'%':'—';
-    document.getElementById('hToday').textContent=this.s.log[this.today()]||0;
+    this.updateHeader();
     this.renderCalendar();
-
-    let streak=0,d=this.today();
-    if(!this.s.log[d])d=this.addDays(d,-1);
-    while(this.s.log[d]){streak++;d=this.addDays(d,-1)}
-    document.getElementById('hStreak').textContent=streak;
 
     const week=document.getElementById('week');week.innerHTML='';
     const t=this.today();let total7=0,max=1;const buckets=[];
@@ -2478,6 +2514,8 @@ const App={
 
   applyProgress(parsed){
     parsed=parsed||{};
+    if(typeof parsed!=='object'||Array.isArray(parsed)){ throw new Error('bad schema'); }
+    if((parsed.schema||0)>SCHEMA) this.toast('备份来自更新的版本，已尽量导入');
     const st=Object.assign(structuredClone(DEFAULT),parsed);
     st.settings=Object.assign({},DEFAULT.settings,parsed.settings||{});
     ['cards','log','stars','time','ans'].forEach(k=>{
