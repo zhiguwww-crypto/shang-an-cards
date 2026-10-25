@@ -137,43 +137,56 @@
 
 <table>
   <tr>
-    <td align="center" valign="top">
-      <img src="docs/shots/demo-flip.gif" width="330"><br>
+    <td align="center" valign="top" width="50%">
+      <img src="docs/shots/grid/demo-flip.gif" width="400" alt="成语翻卡"><br>
       <sub>🎴 成语翻卡——点击翻面看释义与拼音</sub>
     </td>
-    <td align="center" valign="top">
-      <img src="docs/shots/demo-fill.gif" width="400"><br>
+    <td align="center" valign="top" width="50%">
+      <img src="docs/shots/grid/demo-fill.gif" width="400" alt="背诵模式"><br>
       <sub>📝 背诵模式——考点挖空，点空格逐个揭晓</sub>
     </td>
   </tr>
   <tr>
     <td align="center" valign="top">
-      <img src="docs/shots/demo-fireworks.gif" width="400"><br>
+      <img src="docs/shots/grid/demo-fireworks.gif" width="400" alt="完成庆祝"><br>
       <sub>🎆 每日目标达成——礼花 + 鼓励语</sub>
     </td>
     <td align="center" valign="top">
-      <img src="docs/shots/know-memo.png" width="400"><br>
-      <sub>📖 记忆模式——知识点铺开读，板块筛选 + 打乱 / 顺序</sub>
+      <img src="docs/shots/grid/know-memo.png" width="400" alt="记忆模式"><br>
+      <sub>📖 记忆模式——列举自动分段 + 板块筛选</sub>
     </td>
   </tr>
   <tr>
     <td align="center" valign="top">
-      <img src="docs/shots/quiz.png" width="400"><br>
+      <img src="docs/shots/grid/quiz.png" width="400" alt="测验"><br>
       <sub>⚡ 四选一测验——计时、正确率、错题回顾</sub>
     </td>
     <td align="center" valign="top">
-      <img src="docs/shots/stats.png" width="400"><br>
-      <sub>📊 数据看板——学习量 / 正确率 / 学习日历热力图</sub>
+      <img src="docs/shots/grid/stats.png" width="400" alt="数据看板"><br>
+      <sub>📊 数据看板——学习量 / 正确率 / 热力图</sub>
     </td>
   </tr>
   <tr>
     <td align="center" valign="top">
-      <img src="docs/shots/library.png" width="400"><br>
+      <img src="docs/shots/grid/library.png" width="400" alt="卡片库"><br>
       <sub>📚 卡片库——2555 张全量浏览与折叠筛选</sub>
     </td>
     <td align="center" valign="top">
-      <img src="docs/shots/mobile-home.png" width="280"><br>
-      <sub>📱 手机端同样顺手，微信里点开就能用</sub>
+      <img src="docs/shots/grid/know-fill.png" width="400" alt="背诵模式概览"><br>
+      <sub>✅ 每日目标进度条常驻，刷完就放礼花</sub>
+    </td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td align="center" valign="top" width="50%">
+      <img src="docs/shots/mobile-home.png" width="270" alt="手机端记忆页"><br>
+      <sub>📱 手机端 · 常识</sub>
+    </td>
+    <td align="center" valign="top" width="50%">
+      <img src="docs/shots/mobile-idiom.png" width="270" alt="手机端成语页"><br>
+      <sub>📱 手机端 · 成语翻卡</sub>
     </td>
   </tr>
 </table>
