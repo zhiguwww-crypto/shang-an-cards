@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 生成自检页面：把 index.html 复制一份，注入 128 项断言，输出到 outputs/selftest.html
+ * 生成自检页面：把 index.html 复制一份，注入 136 项断言，输出到 outputs/selftest.html
  * 由 test.sh 调用，配合无头 Chrome 运行。
  */
 const fs = require('fs');
@@ -325,6 +325,37 @@ try{
      App.s.fixes[App.s.fixes.length-1].note==='测试纠错内容');
   ok('J11 纠错计数显示', document.getElementById('fixN').textContent===String(fx0+1),
      document.getElementById('fixN').textContent);
+
+  /* ---------- N 校正草稿（纠错记录 → overrides.json 格式） ---------- */
+  document.querySelector('nav button[data-v="stats"]').click();
+  await sleep(80);
+  const flRows=document.querySelectorAll('#fixList .fl').length;
+  ok('N1 纠错记录有列表', flRows>=1, flRows+' 行');
+  ok('N2 列表显示标题与说明', (()=>{
+    const r=document.querySelector('#fixList .fl');
+    return !!r && r.querySelector('b').textContent.length>0 &&
+           r.querySelector('.nt').textContent.length>0;
+  })());
+  App.s.fixes=[{id:'x',cat:'人文历史',front:'都城特点',
+                note:'定都洛阳的朝代里东汉应写成「东汉、曹魏、西晋」',at:today},
+               {id:'y',cat:'科技',front:'不存在的一张卡',note:'测试缺失卡片兜底',at:today}];
+  App.renderFixList();
+  ok('N3 列表按最新在前', document.querySelector('#fixList .fl b').textContent==='不存在的一张卡');
+  const draft=App.exportFixDraft(true);
+  ok('N4 草稿含两条且结构正确', !!draft && Object.keys(draft).length===2 &&
+     typeof draft['都城特点'].back==='string' && draft['都城特点']._note.indexOf('东汉')>=0,
+     draft?Object.keys(draft).join(','):'null');
+  ok('N5 草稿带上当前正文', draft['都城特点'].back.indexOf('定都')>=0);
+  ok('N6 卡片不存在时 back 为空串', draft['不存在的一张卡'].back==='');
+  const before=(App.s.fixes||[]).length;
+  document.querySelector('#fixList .fl .del').click();
+  ok('N7 可单条删除', (App.s.fixes||[]).length===before-1,
+     before+'→'+(App.s.fixes||[]).length);
+  App.s.fixes=[]; App.renderFixList();
+  ok('N8 清空后显示占位', document.querySelectorAll('#fixList .fl').length===0 &&
+     !!document.querySelector('#fixList .empty'));
+  App.s.fixes=[{id:'x',cat:'科技',front:'测试卡',note:'恢复',at:today}];
+  App.renderFixList();
 
   /* ---------- F 卡片库 ---------- */
   document.querySelector('nav button[data-v="library"]').click();

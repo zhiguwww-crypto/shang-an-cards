@@ -606,6 +606,22 @@ html.wx-android header{backdrop-filter:none;-webkit-backdrop-filter:none;backgro
 .acts button:hover{border-color:var(--ink-3);color:var(--ink);background:var(--card)}
 .note{font-size:11px;color:var(--ink-3);line-height:1.85;margin-bottom:12px}
 
+/* ---------- 纠错记录列表 ---------- */
+.fixlist{margin-top:12px;display:flex;flex-direction:column;gap:7px}
+.fixlist .fl{display:flex;gap:9px;align-items:flex-start;background:var(--paper);
+  border:1px solid var(--line-2);border-radius:10px;padding:9px 11px}
+.fixlist .fl .fx{flex:1;min-width:0}
+.fixlist .fl b{display:block;font-family:var(--serif);font-size:12.5px;font-weight:600;
+  letter-spacing:.5px;color:var(--ink);margin-bottom:3px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fixlist .fl .nt{font-size:11px;line-height:1.65;color:var(--ink-2);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.fixlist .fl .fd{font-size:9.5px;color:var(--ink-3);margin-top:5px;letter-spacing:.4px}
+.fixlist .fl .del{flex:0 0 auto;width:24px;height:24px;border-radius:50%;
+  display:grid;place-items:center;color:var(--ink-3);font-size:14px;line-height:1;transition:.15s}
+.fixlist .fl .del:hover{color:var(--accent);background:var(--paper-2)}
+.fixlist .empty{font-size:11px;color:var(--ink-3);letter-spacing:.4px;padding:2px 0}
+
 /* ---------- 底栏 ---------- */
 nav{
   flex:0 0 auto;display:flex;justify-content:center;gap:2px;
@@ -1247,10 +1263,11 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
         <div class="acts">
           <button onclick="App.exportProgress()">导出进度</button>
           <button onclick="App.importProgress()">导入进度</button>
-          <button onclick="App.copyFixes()">纠错记录（<span id="fixN">0</span>）</button>
+          <button onclick="App.exportFixDraft()">校正草稿（<span id="fixN">0</span>）</button>
           <button onclick="App.reset()">清空进度</button>
         </div>
-        <p class="metricNote">在背诵页看到内容有问题，点卡片右上角「✎ 纠错」记一笔；这里可以把记录一次性复制出来发我。</p>
+        <p class="metricNote">在背诵页看到内容有问题，点卡片右上角「✎ 纠错」记一笔；「校正草稿」会把它们整理成 overrides.json 的格式（附当前正文和你的说明），下载或复制后发我，我改完重新构建就生效。</p>
+        <div class="fixlist" id="fixList"></div>
       </div>
     </div>
   </section>
@@ -3026,6 +3043,7 @@ const App={
 
   renderStats(){
     this._statsDirty=false;
+    this.renderFixList();
     const st=this.s.cards,ids=Object.keys(st);
     const master=ids.filter(k=>st[k].master).length;
     let right=0,wrong=0,reviews=0;
@@ -3101,9 +3119,70 @@ const App={
     this.s.fixes.push({id:c.id,cat:c.cat,front:c.front,note,at:this.today()});
     this.save();
     this.closeFix();
-    this.toast('已记录，可在数据页复制出来');
+    this.toast('已记录，可在数据页生成校正草稿');
+    this.renderFixList();
+  },
+  /* 纠错记录列表：最新的在前，可单条删除 */
+  renderFixList(){
+    const box=document.getElementById('fixList');
     const fn=document.getElementById('fixN');
-    if(fn)fn.textContent=this.s.fixes.length;
+    if(fn)fn.textContent=(this.s.fixes||[]).length;
+    if(!box)return;
+    const list=(this.s.fixes||[]).slice().reverse();
+    box.innerHTML='';
+    if(!list.length){
+      box.innerHTML='<div class="empty">暂无纠错记录</div>';
+      return;
+    }
+    list.forEach(f=>{
+      const i=(this.s.fixes||[]).indexOf(f);
+      const row=document.createElement('div');
+      row.className='fl';
+      const left=document.createElement('div');
+      left.className='fx';
+      left.innerHTML='<b>'+esc(f.front||'')+'</b>'+
+        '<div class="nt">'+esc(f.note||'')+'</div>'+
+        '<div class="fd">'+esc(f.cat||'')+' · '+esc(f.at||'')+'</div>';
+      const del=document.createElement('button');
+      del.className='del';del.title='删除这条';del.textContent='×';
+      del.onclick=()=>{
+        this.s.fixes.splice(i,1); this.save(); this.renderFixList(); this.toast('已删除这条纠错');
+      };
+      row.appendChild(left);row.appendChild(del);
+      box.appendChild(row);
+    });
+  },
+  /* 把纠错记录整理成 overrides.json 的格式：front → {back, _note, _cat, _at}
+     下载 + 复制双路，用户发我后由我补上修正后的 back 再合并进 data/overrides.json */
+  exportFixDraft(dryRun){
+    const list=this.s.fixes||[];
+    if(!list.length){ this.toast('还没有纠错记录'); return null; }
+    const draft={};
+    list.forEach(f=>{
+      if(!f||!f.front)return;
+      const card=CARDS.find(c=>c.front===f.front);
+      draft[f.front]={
+        back:(card&&card.back)||'',
+        _note:f.note||'',
+        _cat:f.cat||(card&&card.cat)||'',
+        _at:f.at||''
+      };
+    });
+    if(dryRun)return draft;                 // 自检用：只产出不落地
+    const n=Object.keys(draft).length;
+    const data=JSON.stringify(draft,null,1);
+    try{
+      const b=new Blob([data],{type:'application/json'});
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(b);
+      a.download='校正草稿_'+this.today()+'.json';
+      a.click();
+    }catch(e){}
+    const ok=()=>this.toast('已生成 '+n+' 条校正草稿，发我即可改卡');
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(data).then(ok).catch(()=>this.toast('已下载校正草稿（'+n+' 条）'));
+    }else this.toast('已下载校正草稿（'+n+' 条）');
+    return draft;
   },
   copyFixes(){
     const list=this.s.fixes||[];
