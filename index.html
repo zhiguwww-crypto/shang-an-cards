@@ -56,7 +56,7 @@ button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit
 /* ---------- 顶栏 ---------- */
 header{
   flex:0 0 auto;display:flex;align-items:center;gap:14px;
-  padding:calc(10px + env(safe-area-inset-top)) 22px 10px;
+  padding:10px 22px 10px;padding:calc(10px + env(safe-area-inset-top)) 22px 10px;
   border-bottom:1px solid var(--line-2);
   background:var(--header-bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
   z-index:20;
@@ -202,7 +202,7 @@ main{flex:1;min-height:0;position:relative}
 .face.back .ftag{color:var(--gold)}
 .ftag .dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:currentColor;margin-right:6px;vertical-align:middle}
 .fword{
-  font-family:var(--serif);font-size:clamp(30px,6.4vw,50px);letter-spacing:.16em;
+  font-family:var(--serif);font-size:40px;font-size:clamp(30px,6.4vw,50px);letter-spacing:.16em;
   text-align:center;line-height:1.4;font-weight:600;color:var(--ink);
   position:relative;z-index:2;text-indent:.16em;
 }
@@ -223,6 +223,23 @@ main{flex:1;min-height:0;position:relative}
   border-bottom:1px dashed rgba(176,138,74,.45);padding:0 0 1px;position:relative;z-index:3}
 .fex{margin-top:18px;padding-top:16px;border-top:1px dashed var(--line);font-size:13px;line-height:1.9;color:var(--ink-2);position:relative;z-index:2}
 .fex em{font-style:normal;color:var(--ink-3);font-size:10.5px;letter-spacing:1.5px;display:block;margin-bottom:7px}
+
+/* ---------- 小工具文本分享/粘贴导入弹层 ---------- */
+.mt-share{position:fixed;top:0;right:0;bottom:0;left:0;z-index:960;background:rgba(28,25,23,.5);
+  display:flex;align-items:center;justify-content:center;padding:20px}
+.mt-share-c{background:var(--card,#fff);border-radius:16px;padding:16px;width:100%;max-width:520px;
+  max-height:80vh;display:flex;flex-direction:column}
+.mt-share-c h3{font-size:15px;margin-bottom:6px;color:var(--ink,#333)}
+.mt-share-c p{font-size:11px;color:var(--ink-3,#999);margin-bottom:8px}
+.mt-share-c textarea{flex:1;min-height:150px;width:100%;border:1px solid rgba(0,0,0,.15);border-radius:10px;
+  padding:10px;font-size:12px;line-height:1.5;resize:vertical;background:var(--paper-2,#f7f2e9);
+  color:var(--ink,#333);-webkit-user-select:text;user-select:text}
+.mt-share-c button{margin-top:10px;padding:10px 14px;border-radius:10px;border:none;
+  background:var(--ink,#222);color:var(--on-ink,#fff);font-size:13px;-webkit-appearance:none;appearance:none}
+.mt-share-c button.primary{background:#b3382e}
+.mt-share-row{display:flex}
+.mt-share-row button{flex:1}
+.mt-share-row button+button{margin-left:10px}
 
 /* ---------- 列举分段（（1）（2） / ①② / 1. 2. / 一、二、 / （一）（二）） ---------- */
 .enum{display:flex;flex-direction:column;gap:7px;position:relative;z-index:2}
@@ -248,7 +265,7 @@ main{flex:1;min-height:0;position:relative}
 .rate{
   flex:0 0 auto;width:100%;max-width:600px;margin:0 auto;
   display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;
-  padding:14px 22px calc(16px + env(safe-area-inset-bottom));
+  padding:14px 22px 16px;padding:14px 22px calc(16px + env(safe-area-inset-bottom));
   opacity:.45;pointer-events:none;transition:opacity .25s;
 }
 .rate.on{opacity:1;pointer-events:auto}
@@ -648,7 +665,7 @@ nav{
   flex:0 0 auto;display:flex;justify-content:center;gap:2px;
   border-top:1px solid var(--line-2);background:var(--nav-bg);
   backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-  padding-bottom:env(safe-area-inset-bottom);z-index:20;
+  padding-bottom:0;padding-bottom:env(safe-area-inset-bottom);z-index:20;
 }
 nav button{flex:0 1 140px;padding:9px 0 10px;font-size:10.5px;color:var(--ink-3);letter-spacing:1px;display:flex;flex-direction:column;align-items:center;gap:3px;transition:color .18s}
 nav button svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;transition:transform .18s}
@@ -676,7 +693,7 @@ nav button.on svg{transform:translateY(-1px)}
 .sheet .sbtn.ghost{background:var(--card);border:1px solid var(--line);color:var(--ink-2)}
 .sheet .sbtn.ghost:hover{border-color:var(--ink-3);color:var(--ink)}
 .toast{
-  position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));
+  position:fixed;left:50%;bottom:84px;bottom:calc(84px + env(safe-area-inset-bottom));
   transform:translateX(-50%) translateY(10px);background:rgba(28,25,23,.94);color:#fff;
   font-size:12px;padding:10px 18px;border-radius:20px;opacity:0;pointer-events:none;
   transition:.26s;z-index:70;letter-spacing:.4px;white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,.18);
@@ -870,7 +887,7 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
 
 @media(max-width:820px){.grid-list{grid-template-columns:1fr}}
 @media(max-width:640px){
-  header{padding:calc(8px + env(safe-area-inset-top)) 16px 8px;gap:10px}
+  header{padding:8px 16px;padding:calc(8px + env(safe-area-inset-top)) 16px 8px;gap:10px}
   .brand h1{font-size:15.5px;letter-spacing:1px}
   .brand em{display:none}
   .hstats{gap:10px}
@@ -883,13 +900,13 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
   .cardwrap{max-height:none}
   .face{padding:32px 24px;border-radius:16px}
   .face.back{padding:44px 24px 38px}
-  .fword{font-size:clamp(27px,8vw,38px);letter-spacing:.1em}
+  .fword{font-size:32px;font-size:clamp(27px,8vw,38px);letter-spacing:.1em}
   .fpy{font-family:var(--sans);font-size:13px;color:var(--ink-3);letter-spacing:.05em;
   font-weight:400;margin-top:12px;text-indent:0;line-height:1.6}
 .fword small{font-size:10.5px;margin-top:16px}
   .fbody{font-size:14.5px;line-height:1.95}
   .fex{font-size:12px}
-  .rate{padding:12px 16px calc(14px + env(safe-area-inset-bottom));gap:7px}
+  .rate{padding:12px 16px 14px;padding:12px 16px calc(14px + env(safe-area-inset-bottom));gap:7px}
   .rbtn{padding:11px 4px;font-size:12.5px;border-radius:11px}
   .rbtn small{font-size:9px}
   .kpis{grid-template-columns:repeat(2,1fr);gap:8px}
@@ -921,7 +938,7 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
 }
 @media(max-height:620px){
   .cardwrap{max-height:none}
-  .fword{font-size:clamp(24px,5vw,34px)}
+  .fword{font-size:28px;font-size:clamp(24px,5vw,34px)}
   .fbody{font-size:13.5px;line-height:1.85}
   .hint{display:none}
   .face{padding:26px 22px}
@@ -1070,8 +1087,8 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
         <div><b id="dRev">0</b><span>复习</span></div>
         <div><b id="dAcc">0%</b><span>正确率</span></div>
       </div>
-      <button class="again" onclick="App.extra()">再来 10 张</button>
-      <button class="again ghost" onclick="App.showCele(true)">再看一次礼花</button>
+      <button class="again" data-call="App.extra()">再来 10 张</button>
+      <button class="again ghost" data-call="App.showCele(true)">再看一次礼花</button>
       <p class="note" style="margin:6px 0 0;max-width:320px">答错的卡会进入 1 / 2 / 4 / 7 / 15 / 30 天复习队列，连续答对 4 次才算掌握。</p>
     </div>
   </section>
@@ -1136,8 +1153,8 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
         <div><b id="dRevI">0</b><span>复习</span></div>
         <div><b id="dAccI">0%</b><span>正确率</span></div>
       </div>
-      <button class="again" onclick="App.extra()">再来 10 张</button>
-      <button class="again ghost" onclick="App.showCele(true)">再看一次礼花</button>
+      <button class="again" data-call="App.extra()">再来 10 张</button>
+      <button class="again ghost" data-call="App.showCele(true)">再看一次礼花</button>
       <p class="note" style="margin:6px 0 0;max-width:320px">左滑记住 · 右滑忘了 · 上滑收藏，答错的卡次日必复习。</p>
     </div>
   </section>
@@ -1319,10 +1336,10 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
         <h3>数据</h3>
         <p class="note">进度保存在本机浏览器。换设备或想让我重排复习计划时，导出后把内容发我。</p>
         <div class="acts">
-          <button onclick="App.exportProgress()">导出进度</button>
-          <button onclick="App.importProgress()">导入进度</button>
-          <button onclick="App.exportFixDraft()">校正草稿（<span id="fixN">0</span>）</button>
-          <button onclick="App.reset()">清空进度</button>
+          <button data-call="App.exportProgress()">导出进度</button>
+          <button data-call="App.importProgress()">导入进度</button>
+          <button data-call="App.exportFixDraft()">校正草稿（<span id="fixN">0</span>）</button>
+          <button data-call="App.reset()">清空进度</button>
         </div>
         <p class="metricNote">在记忆页看到内容有问题，点卡片右上角「✎ 纠错」记一笔；「校正草稿」会把它们整理成 overrides.json 的格式（附当前正文和你的说明），下载或复制后发我，我改完重新构建就生效。</p>
         <div class="fixlist" id="fixList"></div>
@@ -1346,7 +1363,7 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
     <div class="cele-seal">成</div>
     <p class="cele-msg" id="celeMsg"></p>
     <p class="cele-sub" id="celeSub"></p>
-    <button class="cele-btn" onclick="App.showCele(true)">再看一次</button>
+    <button class="cele-btn" data-call="App.showCele(true)">再看一次</button>
   </div>
 </div>
 
@@ -1381,9 +1398,9 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
       <span>配色主题</span>
       <div class="swatches" id="swatches"></div>
     </div>
-    <button class="sbtn primary" onclick="App.saveSettings()">保存</button>
+    <button class="sbtn primary" data-call="App.saveSettings()">保存</button>
     <p class="note" style="margin-top:14px">艾宾浩斯节奏：答对后间隔 1→2→4→7→15→30 天，答错立即回到 1 天。连续答对 4 次且跨过 15 天档，判定为掌握。</p>
-    <button class="sbtn ghost" onclick="App.closeModal()">关闭</button>
+    <button class="sbtn ghost" data-call="App.closeModal()">关闭</button>
   </div>
 </div>
 
@@ -1392,8 +1409,8 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
     <h3>卡片纠错</h3>
     <div class="fixpre" id="fixPre"></div>
     <textarea class="fixta" id="fixNote" placeholder="哪里不对？例如：释义少了后半句 / 分类应为法律 / 有错别字 …"></textarea>
-    <button class="sbtn primary" onclick="App.saveFix()">保存记录</button>
-    <button class="sbtn ghost" onclick="App.closeFix()">取消</button>
+    <button class="sbtn primary" data-call="App.saveFix()">保存记录</button>
+    <button class="sbtn ghost" data-call="App.closeFix()">取消</button>
   </div>
 </div>
 
@@ -1583,7 +1600,7 @@ const App={
       if(!raw) return structuredClone(DEFAULT);
       const parsed=JSON.parse(raw);
       const rawSet=(parsed&&parsed.settings&&typeof parsed.settings==='object')?parsed.settings:{};
-      const st=Object.assign(structuredClone(DEFAULT),parsed);
+      const st=Object.assign(typeof structuredClone==='function'?structuredClone(DEFAULT):JSON.parse(JSON.stringify(DEFAULT)),parsed);
       st.settings=Object.assign({},DEFAULT.settings,rawSet);
       // 旧版默认 10/30 偏少：只在从未迁移过时一次性上调，之后完全以用户选择为准
       if((rawSet.cfgVer||1)<3){
@@ -1694,7 +1711,7 @@ const App={
       const b=document.createElement('button');
       b.className='catchip'+(c===cur?' on':'');
       b.innerHTML=(c==='全部'?('全部板块<i>'+CARDS.filter(x=>x.cat!=='成语').length+'</i>'):(esc(c)+'<i>'+(total[c]||0)+'</i>'));
-      b.onclick=()=>this.setStudyCat(c);
+      b.addEventListener('click',()=>this.setStudyCat(c));
       box.appendChild(b);
     });
     // 当前板块今天还有多少张可学
@@ -1911,7 +1928,7 @@ const App={
         const sp=document.createElement('span');
         sp.className='bk';sp.dataset.i=i;sp.style.minWidth=w+'em';
         sp.textContent='?';
-        sp.onclick=()=>this.revealBlank(sp);
+        sp.addEventListener('click',sp._mtR=function(){this.revealBlank(sp)}.bind(this));
         el.appendChild(sp);
       }else if(seg){
         el.appendChild(document.createTextNode(seg));
@@ -1993,11 +2010,11 @@ const App={
     const eb=document.getElementById('btnExpand');
     eb.style.display=needClamp?'':'none';
     eb.textContent='展开全文 ↓';
-    eb.onclick=(e)=>{
+    eb.addEventListener('click',(e)=>{
       e.stopPropagation();
       const c2=bodyEl.classList.toggle('clamp');
       eb.textContent=c2?'展开全文 ↓':'收起 ↑';
-    };
+    });
     const ex=c.example||'';
     document.getElementById('exBox').style.display=ex?'':'none';
     document.getElementById('exB').textContent=ex;
@@ -2363,7 +2380,7 @@ const App={
       const b=document.createElement('button');
       b.className='chip'+(c===this.filter.cat?' on':'');
       b.innerHTML=c==='全部'?('全部<i>'+CARDS.length+'</i>'):(esc(c)+'<i>'+(counts[c]||0)+'</i>');
-      b.onclick=()=>{this.filter.cat=c;this.shown=60;this.buildChips();this.renderList()};
+      b.addEventListener('click',()=>{this.filter.cat=c;this.shown=60;this.buildChips();this.renderList()});
       box.appendChild(b);
     });
     this.buildStateChips();
@@ -2380,7 +2397,7 @@ const App={
       const b=document.createElement('button');
       b.className='chip st'+(this.filter.state===k?' on':'');
       b.innerHTML=label+'<i>'+n+'</i>';
-      b.onclick=()=>{this.filter.state=k;this.shown=60;this.buildStateChips();this.renderList()};
+      b.addEventListener('click',()=>{this.filter.state=k;this.shown=60;this.buildStateChips();this.renderList()});
       box.appendChild(b);
     });
     this.paintDropBar();
@@ -2470,7 +2487,7 @@ const App={
         ((this.s.stars&&this.s.stars[c.id])?'<span class="star">★ 收藏</span>':'')+
         (p?('<span>对 '+p.right+' · 错 '+p.wrong+'</span>'):'')+
         '</div>';
-      d.onclick=()=>d.classList.toggle('open');
+      d.addEventListener('click',()=>d.classList.toggle('open'));
       frag.appendChild(d);
     });
     box.appendChild(frag);
@@ -2478,7 +2495,7 @@ const App={
       const m=document.createElement('button');
       m.className='more';
       m.textContent='加载更多（还有 '+(arr.length-show.length)+' 张）';
-      m.onclick=()=>{this.shown+=120;this.renderList()};
+      m.addEventListener('click',()=>{this.shown+=120;this.renderList()});
       box.appendChild(m);
     }
   },
@@ -2653,7 +2670,7 @@ const App={
       b.className='qxopt';
       const t=o.back.length>52?o.back.slice(0,52)+'…':o.back;
       b.innerHTML='<span class="k">'+'ABCD'[i]+'</span><span>'+esc(t)+'</span>';
-      b.onclick=()=>this.answerQ(i);
+      b.addEventListener('click',()=>this.answerQ(i));
       box.appendChild(b);
     });
 
@@ -2815,7 +2832,7 @@ const App={
     const a=q.a[+sp.dataset.i];
     sp.classList.add('revealed');
     sp.textContent=a;
-    sp.onclick=null;
+    if(sp._mtR){sp.removeEventListener('click',sp._mtR);sp._mtR=null;}
     document.getElementById('rateFill').classList.add('on');
   },
 
@@ -3406,9 +3423,9 @@ const App={
         '<div class="fd">'+esc(f.cat||'')+' · '+esc(f.at||'')+'</div>';
       const del=document.createElement('button');
       del.className='del';del.title='删除这条';del.textContent='×';
-      del.onclick=()=>{
+      del.addEventListener('click',()=>{
         this.s.fixes.splice(i,1); this.save(); this.renderFixList(); this.toast('已删除这条纠错');
-      };
+      });
       row.appendChild(left);row.appendChild(del);
       box.appendChild(row);
     });
@@ -3432,48 +3449,62 @@ const App={
     if(dryRun)return draft;                 // 自检用：只产出不落地
     const n=Object.keys(draft).length;
     const data=JSON.stringify(draft,null,1);
-    try{
-      const b=new Blob([data],{type:'application/json'});
-      const a=document.createElement('a');
-      a.href=URL.createObjectURL(b);
-      a.download='校正草稿_'+this.today()+'.json';
-      a.click();
-    }catch(e){}
-    const ok=()=>this.toast('已生成 '+n+' 条校正草稿，发我即可改卡');
-    if(navigator.clipboard&&navigator.clipboard.writeText){
-      navigator.clipboard.writeText(data).then(ok).catch(()=>this.toast('已下载校正草稿（'+n+' 条）'));
-    }else this.toast('已下载校正草稿（'+n+' 条）');
+    this.shareOut('校正草稿（'+n+' 条）','校正草稿_'+this.today()+'.json',data,'已生成 '+n+' 条校正草稿');
     return draft;
+  },
+  /* —— 分享/备份出口：容器内无剪贴板与文件下载，改为展示可选文本引导手动复制 —— */
+  inMiniTool(){
+    return !!(window.xhs&&window.xhs.miniTool);
+  },
+  shareOut(title,name,text,okMsg){
+    if(!this.inMiniTool()){
+      try{
+        const b=new Blob([text],{type:'application/json'});
+        const a=document.createElement('a');
+        a.href=URL.createObjectURL(b);
+        a.download=name;
+        a.click();
+        if(navigator.clipboard&&navigator.clipboard.writeText){
+          navigator.clipboard.writeText(text).then(()=>this.toast('已下载，并复制到剪贴板')).catch(()=>this.toast(okMsg+'，已下载'));
+        }else this.toast(okMsg+'，已下载');
+        return;
+      }catch(e){}
+    }
+    this.showTextModal(title,text);
+  },
+  showTextModal(title,text){
+    const ov=document.createElement('div');
+    ov.className='mt-share';
+    const box=document.createElement('div');
+    box.className='mt-share-c';
+    const h=document.createElement('h3');h.textContent=title;
+    const p=document.createElement('p');p.textContent='长按下方文本全选，手动复制后粘贴保存';
+    const ta=document.createElement('textarea');ta.readOnly=true;ta.value=text;
+    const btn=document.createElement('button');btn.textContent='关 闭';
+    btn.addEventListener('click',()=>ov.remove());
+    ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+    box.appendChild(h);box.appendChild(p);box.appendChild(ta);box.appendChild(btn);
+    ov.appendChild(box);
+    document.body.appendChild(ov);
+    ta.focus();ta.select();
   },
   copyFixes(){
     const list=this.s.fixes||[];
     if(!list.length){ this.toast('还没有纠错记录'); return; }
     const txt=list.map((f,i)=>(i+1)+'. ['+f.cat+'] '+f.front+' → '+f.note).join('\n');
     const done=()=>this.toast('已复制 '+list.length+' 条纠错');
-    if(navigator.clipboard&&navigator.clipboard.writeText){
-      navigator.clipboard.writeText(txt).then(done).catch(()=>this.fallbackCopy(txt,done));
-    }else this.fallbackCopy(txt,done);
-  },
-  fallbackCopy(txt,done){
-    try{
-      const ta=document.createElement('textarea');
-      ta.value=txt; ta.style.cssText='position:fixed;opacity:0;left:-9999px';
-      document.body.appendChild(ta); ta.select(); document.execCommand('copy');
-      document.body.removeChild(ta); done();
-    }catch(e){ this.toast('复制失败，请用「导出进度」'); }
+    if(!this.inMiniTool()&&navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(done).catch(()=>this.showTextModal('纠错记录',txt));
+    }else this.showTextModal('纠错记录',txt);
   },
 
   exportProgress(){
     const data=JSON.stringify(this.s);
-    const b=new Blob([data],{type:'application/json'});
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(b);
-    a.download='上岸常识刷刷刷进度_'+this.today()+'.json';
-    a.click();
-    navigator.clipboard?.writeText(data).then(()=>this.toast('已下载，并复制到剪贴板')).catch(()=>this.toast('已下载进度文件'));
+    this.shareOut('进度备份','上岸常识刷刷刷进度_'+this.today()+'.json',data,'已导出进度');
   },
 
   importProgress(){
+    if(this.inMiniTool()){ this.showImportModal(); return; }   // 容器选不了 json 文件，用粘贴导入
     const inp=document.createElement('input');inp.type='file';inp.accept='.json';
     inp.onchange=()=>{
       const f=inp.files[0];if(!f)return;
@@ -3487,11 +3518,35 @@ const App={
     inp.click();
   },
 
+  /* 容器内粘贴导入：把「导出进度」复制的 JSON 粘进来恢复 */
+  showImportModal(){
+    const ov=document.createElement('div');
+    ov.className='mt-share';
+    const box=document.createElement('div');
+    box.className='mt-share-c';
+    const h=document.createElement('h3');h.textContent='粘贴导入进度';
+    const p=document.createElement('p');p.textContent='把「导出进度」得到的 JSON 文本粘贴到下面';
+    const ta=document.createElement('textarea');ta.placeholder='{"cards":...';
+    const row=document.createElement('div');row.className='mt-share-row';
+    const ok=document.createElement('button');ok.textContent='导 入';ok.className='primary';
+    const cancel=document.createElement('button');cancel.textContent='取 消';
+    ok.addEventListener('click',()=>{
+      try{ this.applyProgress(JSON.parse(ta.value)); ov.remove(); this.toast('进度已导入'); }
+      catch(e){ this.toast('内容不是有效的进度 JSON'); }
+    });
+    cancel.addEventListener('click',()=>ov.remove());
+    row.appendChild(ok);row.appendChild(cancel);
+    box.appendChild(h);box.appendChild(p);box.appendChild(ta);box.appendChild(row);
+    ov.appendChild(box);
+    document.body.appendChild(ov);
+    ta.focus();
+  },
+
   applyProgress(parsed){
     parsed=parsed||{};
     if(typeof parsed!=='object'||Array.isArray(parsed)){ throw new Error('bad schema'); }
     if((parsed.schema||0)>SCHEMA) this.toast('备份来自更新的版本，已尽量导入');
-    const st=Object.assign(structuredClone(DEFAULT),parsed);
+    const st=Object.assign(typeof structuredClone==='function'?structuredClone(DEFAULT):JSON.parse(JSON.stringify(DEFAULT)),parsed);
     st.settings=Object.assign({},DEFAULT.settings,parsed.settings||{});
     ['cards','log','stars','time','ans'].forEach(k=>{
       if(!st[k]||typeof st[k]!=='object')st[k]={};
@@ -3556,12 +3611,12 @@ const App={
           b.style.background=t.bg;
           b.style.setProperty('--sw-ac',t.ac);
         }
-        b.onclick=()=>{
+        b.addEventListener('click',()=>{
           this.s.settings.theme=t.k;
           this.save();
           this.applyTheme(t.k);
           this.toast('配色：「'+t.n+'」');
-        };
+        });
         box.appendChild(b);
       });
     }
@@ -3635,6 +3690,24 @@ const App={
 };
 
 function esc(s){return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+
+/* —— 行内事件统一委托（容器 CSP 禁止 onclick 属性，改为 data-call + addEventListener） —— */
+document.addEventListener('click',function(e){
+  var t=e.target;
+  while(t&&t!==document&&!(t.getAttribute&&t.getAttribute('data-call')))t=t.parentNode;
+  if(!t||t===document)return;
+  var call=t.getAttribute('data-call')||'';
+  var m=call.match(/^App\.([A-Za-z_]\w*)\((.*)\)\s*$/);
+  if(!m)return;
+  var fn=App[m[1]];
+  if(typeof fn!=='function')return;
+  var raw=(m[2]||'').trim(),args=[];
+  if(raw){
+    var v=raw==='true'?true:raw==='false'?false:(/^['"].*['"]$/.test(raw)?raw.slice(1,-1):(isNaN(+raw)?raw:+raw));
+    args.push(v);
+  }
+  fn.apply(App,args);
+});
 App.boot();
 </script>
 </body>

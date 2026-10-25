@@ -254,7 +254,8 @@ open index.html          # macOS
 ## 🛠 构建与自检
 
 ```bash
-./build.sh    # 重建：依赖 Python 3 + pypdf；教材 PDF 需按脚本顶部配置放置
+./build.sh         # 重建：依赖 Python 3 + pypdf；教材 PDF 需按脚本顶部配置放置
+`python3 scripts/build_minitool.py`   # 生成小红书小工具离线包（CSP 适配：脚本外置、无行内事件、flex-gap/inset 基线兜底）
 ./test.sh     # 165 项断言：启动、记忆/背诵（板块筛选、打乱/顺序、去重）、
               # 列举分段（混排/重启编号）、翻卡手势、测验、错题本、每日目标、
               # 纠错记录、学习量统计、卡片库、数据看板、设置、导入导出、礼花、路由
