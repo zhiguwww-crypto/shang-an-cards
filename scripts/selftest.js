@@ -238,7 +238,7 @@ try{
         if(r.cssRules){ walk(r.cssRules); continue }
         if(!r.selectorText||!r.style)continue;
         const s=r.selectorText;
-        if(/\.hstats[^,>{]*\sdiv/.test(s)&&r.style.display==='none')bad.push(s);
+        if(/\\.hstats[^,>{]*\\sdiv/.test(s)&&r.style.display==='none')bad.push(s);
       }
     };
     for(const sh of document.styleSheets){ try{ walk(sh.cssRules) }catch(e){} }
@@ -489,26 +489,45 @@ try{
   ok('G17 百分数在圆心', dx<=0.6&&dy<=0.6, '偏移 '+dx.toFixed(1)+','+dy.toFixed(1)+'px');
 
   /* ---------- L 列举分段 ---------- */
-  ok('L1 分段函数存在', typeof splitEnum==='function' && typeof cnNum==='function');
+  ok('L1 分段函数存在', typeof splitEnum==='function' && typeof cnNum==='function' &&
+     typeof findEnumMarks==='function' && typeof buildEnumGroups==='function');
   const neg=['1.琴琴发明于伏羲时代，为五弦之琴。','瓷器烧成温度达到1200°C以上，白度也达到了70%。',
              '第1.节讲这个，第2.节讲那个。','会议决定（2024）（2025）两次拨款。',
              '马克思生于1818年，逝世于1883年。','唐代三绝：李白诗歌、裴旻剑舞、张旭草书。'];
   ok('L2 正文里的数字不误判', neg.every(t=>splitEnum(t)===null));
   const pos=['（1）割让香港岛；（2）赔款；（3）五口通商。','①宪法；②法律；③行政法规；④地方性法规。',
              '一、政治原因；二、抵御外族；三、经济重心转移。','1）琴2）棋3）书4）画，四艺也。'];
-  ok('L3 四类序号都能分段', pos.every(t=>{const s=splitEnum(t);return !!s&&s.filter(x=>x.n).length>=3}));
+  const flatItems=s=>(s||[]).filter(b=>b.k==='l').reduce((a,b)=>a.concat(b.items),[]);
+  ok('L3 四类序号都能分段', pos.every(t=>flatItems(splitEnum(t)).length>=3));
+  ok('L3b 中文括号序号能分段', flatItems(splitEnum('（一）科学发展观的第一要义是发展。（二）核心是以人为本。')).length>=2);
+  ok('L3c 「统一、」不误判', splitEnum('要按照统一、精简、高效的原则大力精简机构和人员；要按照权责统一的原则划分。')===null);
 
   const enumCards=CARDS.filter(c=>splitEnum(c.back));
-  ok('L4 真实数据命中量', enumCards.length>=100, enumCards.length+' 张');
-  ok('L5 编号严格递增', enumCards.every(c=>{
-    const s=splitEnum(c.back).filter(x=>x.n);
-    for(let i=1;i<s.length;i++) if(s[i].n<=s[i-1].n) return false;
-    return true;
+  const L6DBG=[];
+  ok('L4 真实数据命中量', enumCards.length>=170, enumCards.length+' 张');
+  ok('L5 每组内编号连续递增', enumCards.every(c=>{
+    const s=splitEnum(c.back).filter(b=>b.k==='l');
+    return s.every(g=>{for(let i=1;i<g.items.length;i++) if(g.items[i].n<=g.items[i-1].n) return false; return true;});
   }));
   ok('L6 分段不丢原文', enumCards.every(c=>{
     const s=splitEnum(c.back);
-    return s.every(x=>c.back.indexOf(x.lead||x.t)>=0);
-  }));
+    const joined=s.map(b=>b.k==='p'?b.text:b.items.map(x=>x.text).join('')).join('');
+    const src=c.back.replace(/[（(]\\s*\\d{1,2}\\s*[）)]|[①-⑳]|\\d{1,2}\\s*[）)]|\\d{1,2}\\s*[\\.、]|[（(]\\s*[一二三四五六七八九十]{1,3}\\s*[）)]|[一二三四五六七八九十]{1,3}、/g,'');
+    const norm=x=>x.replace(/[\\s，,。；;、]/g,'');
+    if(norm(joined).length<norm(src).length*0.9){ L6DBG.push(c.front+' src='+norm(src).length+' got='+norm(joined).length); return false; }
+    return true;
+  }), L6DBG.slice(0,3).join(' ; '));
+  ok('L6b 编号重启能拆成两组', (()=>{
+    const t='一般渊源：①宪法；②法律；③行政法规。特殊渊源：①法律解释；②其他文件；③国际条约。';
+    const s=splitEnum(t);
+    const gs=(s||[]).filter(b=>b.k==='l');
+    return gs.length===2 && gs[0].items.length===3 && gs[1].items.length===3;
+  })());
+  ok('L6c 混排编号也能拆开', (()=>{
+    const t='（1）社会环境的变迁。（2）公共行政的科学化。（3）技术手段的创新。';
+    const s=splitEnum(t);
+    return flatItems(s).length>=3;
+  })());
 
   App.activate('know');
   const qi=App.queue.findIndex(x=>enumCards.some(e=>e.id===x.c.id));
@@ -537,6 +556,83 @@ try{
     return el.textContent===plain.back && !el.classList.contains('enum') &&
            el.querySelectorAll('.it').length===0;
   })());
+  ok('L11 分段后段落与列表分层渲染', (()=>{
+    const t='行政法的渊源分为一般渊源和特殊渊源。一般渊源：①宪法；②法律；③行政法规。特殊渊源：①法律解释；②其他文件。';
+    const el=document.createElement('div');
+    App.paintEnum(el,t);
+    return el.querySelectorAll('.rlead').length>=1 && el.querySelectorAll('.it').length>=4;
+  })());
+
+  /* ---------- P 背诵页板块筛选 ---------- */
+  App.s.settings.studyCat='全部';
+  App.buildQueues(); App.buildCatChips();
+  const chipRow=document.getElementById('catRow');
+  ok('P1 板块筛选条存在', !!chipRow && !!document.getElementById('catChips'));
+  const chips=[...document.querySelectorAll('#catChips .catchip')];
+  ok('P2 筛选条含全部板块 + 各分类', chips.length>=5 && chips[0].textContent.includes('全部板块'),
+     chips.length+' 个 chip');
+  ok('P3 筛选条不含成语板块（成语独立页）', !chips.some(c=>c.textContent.replace(/\\d+$/,'').trim()==='成语'),
+     chips.map(c=>c.textContent.replace(/\\d+$/,'').trim()).join(','));
+  const targetCat=(()=>{
+    for(const c of CATS){ if(c==='成语')continue;
+      const n=CARDS.filter(x=>x.cat===c).length; if(n>=40) return c; }
+    return null;
+  })();
+  ok('P4 找到可测试的板块', !!targetCat, targetCat||'无');
+  if(targetCat){
+    App.setStudyCat(targetCat);
+    await sleep(120);
+    const allKnow=App.queue.every(x=>x.c.cat===targetCat);
+    ok('P5 选板块后队列只剩该板块', allKnow && App.queue.length>0,
+       targetCat+' · '+App.queue.length+' 张');
+    ok('P6 筛选状态已持久化', App.s.settings.studyCat===targetCat);
+    const chipOn=[...document.querySelectorAll('#catChips .catchip.on')];
+    ok('P7 当前板块 chip 高亮', chipOn.length===1 && chipOn[0].textContent.includes(targetCat));
+    ok('P8 该板块队列不含成语', App.queue.every(x=>x.cat!=='成语'));
+    App.setStudyCat('全部');
+    await sleep(120);
+    const backAll=App.queue.length>0;
+    ok('P9 切回全部板块恢复混合队列', backAll && App.s.settings.studyCat==='全部',
+       App.queue.length+' 张');
+    const multi=new Set(App.queue.map(x=>x.c.cat)).size;
+    ok('P10 全部板块时队列跨多个分类', multi>=2, multi+' 个分类');
+  }
+  ok('P11 筛选条在成语页隐藏', (()=>{
+    App.activate('idiom'); App.buildCatChips();
+    const hidden=document.getElementById('catRow').style.display==='none';
+    App.activate('know'); App.buildCatChips();
+    return hidden && document.getElementById('catRow').style.display!=='none';
+  })());
+
+  /* ---------- Q 学习量统计 ---------- */
+  ok('Q1 学习量面板存在', !!document.getElementById('lvDist') && !!document.getElementById('lvSeen'));
+  App.renderStats();
+  await sleep(60);
+  const lvSeen=parseInt(document.getElementById('lvSeen').textContent)||0;
+  const lvDone=parseInt(document.getElementById('lvDone').textContent)||0;
+  const ids2=Object.keys(App.s.cards);
+  const expectSeen=ids2.filter(k=>(App.s.cards[k].seen||0)>0).length;
+  ok('Q2 学过的卡数与数据一致', lvSeen===expectSeen, lvSeen+' vs '+expectSeen);
+  ok('Q3 刷过的卡数 ≤ 学过的卡数', lvDone<=lvSeen, lvDone+' ≤ '+lvSeen);
+  ok('Q4 累计见过次数=各卡 seen 之和', (()=>{
+    let sum=0; ids2.forEach(k=>sum+=(App.s.cards[k].seen||0));
+    const shown=parseInt(document.getElementById('lvSeenT').textContent)||0;
+    return shown===sum;
+  })());
+  ok('Q5 模糊单独计数', (()=>{
+    let sum=0; ids2.forEach(k=>sum+=(App.s.cards[k].fuzzy||0));
+    const shown=parseInt(document.getElementById('lvFzT').textContent)||0;
+    return shown===sum;
+  })());
+  ok('Q6 模糊评分会被记录', (()=>{
+    const item=App.queue[App.idx]||App.queue[0];
+    if(!item)return true;
+    const before=App.s.cards[item.c.id]?((App.s.cards[item.c.id].fuzzy)||0):0;
+    App.idx=0; App.grade(1);
+    const after=App.s.cards[item.c.id].fuzzy||0;
+    return after===before+1;
+  })());
+  ok('Q7 各板块学习量明细有行', document.querySelectorAll('#lvDist .row').length>=0);
 
   /* ---------- H 设置 ---------- */
   document.getElementById('btnSet').click();

@@ -224,7 +224,7 @@ main{flex:1;min-height:0;position:relative}
 .fex{margin-top:18px;padding-top:16px;border-top:1px dashed var(--line);font-size:13px;line-height:1.9;color:var(--ink-2);position:relative;z-index:2}
 .fex em{font-style:normal;color:var(--ink-3);font-size:10.5px;letter-spacing:1.5px;display:block;margin-bottom:7px}
 
-/* ---------- 列举分段（（1）（2） / ①② / 1. 2. / 一、二、） ---------- */
+/* ---------- 列举分段（（1）（2） / ①② / 1. 2. / 一、二、 / （一）（二）） ---------- */
 .enum{display:flex;flex-direction:column;gap:7px;position:relative;z-index:2}
 .enum .it{display:flex;gap:9px;align-items:flex-start}
 .enum .it>i{flex:0 0 auto;min-width:19px;height:19px;margin-top:.45em;border-radius:6px;
@@ -233,6 +233,10 @@ main{flex:1;min-height:0;position:relative}
   font-variant-numeric:tabular-nums}
 .enum .it>span{flex:1;min-width:0}
 .enum+.enum{margin-top:7px}
+/* 段落（引导语）与条目组的层次：段落略大一点、上下留白更多 */
+.enum .rlead,.enum .qlead{margin:0;line-height:1.95;color:var(--ink-2)}
+.enum .rlead+.it,.enum .qlead+.it{margin-top:2px}
+.enum .it+.rlead,.enum .it+.qlead{margin-top:13px}
 .rlead,.qlead{margin-bottom:8px}
 .readtext .enum .it,.qtext .enum .it{font-size:inherit;line-height:inherit;color:var(--ink-2)}
 .readtext .enum .it>span,.qtext .enum .it>span{color:inherit}
@@ -305,6 +309,20 @@ main{flex:1;min-height:0;position:relative}
 .segbox{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
 .seghint{font-size:10px;color:var(--ink-3);letter-spacing:.4px}
 .segchips{display:inline-flex;gap:4px}
+/* ---------- 背诵页板块筛选条 ---------- */
+.catrow{flex:0 0 auto;display:flex;align-items:center;gap:9px;width:100%;
+  max-width:var(--maxw);margin:0 auto;padding:9px 22px 0}
+.catrowLab{flex:0 0 auto;font-size:10.5px;color:var(--ink-3);letter-spacing:1px}
+.catrowScroll{flex:1;min-width:0;display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none}
+.catrowScroll::-webkit-scrollbar{display:none}
+.catchip{flex:0 0 auto;padding:5px 12px;font-size:11.5px;letter-spacing:.3px;border-radius:14px;
+  border:1px solid var(--line);background:var(--card);color:var(--ink-2);white-space:nowrap;transition:.16s}
+.catchip:hover{border-color:var(--ink-3);color:var(--ink)}
+.catchip.on{background:var(--ink);border-color:var(--ink);color:var(--on-ink)}
+.catchip i{font-style:normal;opacity:.62;margin-left:4px;font-size:9.5px}
+.catchip.on i{opacity:.75}
+.catrowEmpty{flex:0 0 auto;font-size:11px;color:var(--ink-3);padding:5px 2px}
 .ftop{display:flex;align-items:center;gap:8px;margin-bottom:12px;position:relative;z-index:2}
 .schip{padding:6px 15px;font-size:12px;letter-spacing:1px;border-radius:8px;
   border:1px solid var(--line);background:var(--card);color:var(--ink-2);transition:.16s}
@@ -462,6 +480,9 @@ main{flex:1;min-height:0;position:relative}
 #accDist .row .tr i{background:linear-gradient(90deg,#c8b48d,var(--gold))}
 #accDist .row b{width:44px;font-variant-numeric:tabular-nums}
 .dist .row .cnt{width:46px;flex:0 0 auto;text-align:right;font-size:9.5px;color:var(--ink-3)}
+/* 学习量明细：学过 / 背过 / 模糊 / 刷过 四个数字 */
+#lvDist .row .cnt{width:76px;font-variant-numeric:tabular-nums;letter-spacing:-.2px}
+#lvDist .row b{width:44px;font-variant-numeric:tabular-nums}
 
 
 /* ---------- 完成庆祝 ---------- */
@@ -978,6 +999,10 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
         <span class="seghint">点此切换模式</span>
       </div>
     </div>
+    <div class="catrow" id="catRow">
+      <span class="catrowLab">板块</span>
+      <div class="catrowScroll" id="catChips"></div>
+    </div>
     <div class="prow">
       <div class="track"><div class="fill" id="fill"></div></div>
       <span class="count" id="queueCount">0 / 0</span>
@@ -1232,6 +1257,25 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
       </div>
 
       <div class="panel">
+        <h3>学习量统计<em>学过 · 背过 · 模糊 · 刷过</em></h3>
+        <div class="kpis tight">
+          <div class="kpi"><span>学过的卡</span><b id="lvSeen">0<i>张</i></b></div>
+          <div class="kpi"><span>背过的卡</span><b id="lvPass">0<i>张</i></b></div>
+          <div class="kpi"><span>模糊的卡</span><b id="lvFuzzy">0<i>张</i></b></div>
+          <div class="kpi"><span>刷过的卡</span><b id="lvDone">0<i>张</i></b></div>
+        </div>
+        <div class="kpis tight" style="margin-top:9px">
+          <div class="kpi"><span>累计背过</span><b id="lvRight">0<i>次</i></b></div>
+          <div class="kpi"><span>累计模糊</span><b id="lvFzT">0<i>次</i></b></div>
+          <div class="kpi"><span>累计忘了</span><b id="lvWrong">0<i>次</i></b></div>
+          <div class="kpi"><span>累计见过</span><b id="lvSeenT">0<i>次</i></b></div>
+        </div>
+        <div class="subhead">各板块学习量<em>学过 / 背过 / 模糊 / 刷过</em></div>
+        <div class="dist" id="lvDist"></div>
+        <p class="metricNote">「学过」= 至少见过一次；「背过」= 曾评过记住了；「模糊」= 曾评过模糊；「刷过」= 至少完成一次完整评分（记住 / 模糊 / 忘了都算）。模糊不计入正确率，但单独统计次数。</p>
+      </div>
+
+      <div class="panel">
         <h3>正确率<em>对 ÷ （对 + 错）</em></h3>
         <div class="kpis tight">
           <div class="kpi"><span>总体</span><b id="acAll">—</b></div>
@@ -1369,8 +1413,9 @@ function quizOf(c){                // 按需把偏移量还原成「带占位符
 }
 
 /* ---------- 列举分段 ----------
-   把「（1）（2）…」「①②…」「1. 2. …」「一、二、…」拆成条目。
-   只有编号连续递增、且至少 2 条时才分段，避免把正文里的数字误当成序号。 */
+   把「（1）（2）…」「①②…」「1. 2. …」「一、二、…」「（一）（二）…」拆成条目。
+   关键：编号可以「重启」——比如①…⑤之后又来①②③，分成两组而不是整段放弃。
+   返回 [{k:'p',text} | {k:'l',items:[{n,disp,text}]}]，p 是段落、l 是条目组。 */
 function cnNum(s){
   const d={'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9};
   if(!s)return 0;
@@ -1380,48 +1425,96 @@ function cnNum(s){
   return 0;
 }
 const CIRCLED='①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳';
-const ENUM_RE=/(?:[（(]\s*(\d{1,2})\s*[）)])|(?:([①-⑳]))|(?:(\d{1,2})\s*[）)])|(?:(\d{1,2})\s*[\.、](?=[^\s\d]))|(?:([一二三四五六七八九十]{1,3})、)/g;
-function splitEnum(text){
-  if(!text||text.length<16)return null;
-  ENUM_RE.lastIndex=0;
+// 7 组捕获：1 (1) / 2 （1） / 3 ① / 4 1） / 5 1. / 6 一、 / 7 （一）
+const ENUM_RE=/(?:[（(]\s*(\d{1,2})\s*[）)])|(?:([①-⑳]))|(?:(\d{1,2})\s*[）)])|(?:(\d{1,2})\s*[\.、](?=[^\s\d]))|(?:([一二三四五六七八九十]{1,3})、)|(?:[（(]\s*([一二三四五六七八九十]{1,3})\s*[）)])/g;
+function findEnumMarks(text){
   const marks=[]; let m;
+  ENUM_RE.lastIndex=0;
   while((m=ENUM_RE.exec(text))){
-    let n=0;
-    if(m[1]!=null)n=+m[1];
-    else if(m[2]!=null)n=CIRCLED.indexOf(m[2])+1;
+    const p=text[m.index-1]||'';
+    let n=0,style='',disp='';
+    if(m[1]!=null){n=+m[1];style='paren';disp=String(n);}
+    else if(m[2]!=null){n=CIRCLED.indexOf(m[2])+1;style='circle';disp=m[2];}
     else if(m[3]!=null){
       // 「24）」多半是「（2024）」被截断的尾巴：前面还有数字就跳过
-      const p=text[m.index-1]||'';
       if(p==='（'||p==='('||/\d/.test(p))continue;
-      n=+m[3];
+      n=+m[3];style='close';disp=String(n);
     }
     else if(m[4]!=null){
       // 「第1.节」是章节引用，不是列举
-      const p=text[m.index-1]||'';
       if(p==='第'||/\d/.test(p))continue;
-      n=+m[4];
+      n=+m[4];style='dot';disp=String(n);
     }
-    else if(m[5]!=null)n=cnNum(m[5]);
-    if(n>0)marks.push({n,s:m.index,e:m.index+m[0].length});
+    else if(m[5]!=null){
+      // 「一、」前面必须是标点/空白/行首，避免「统一、」「第一、」被当成序号
+      if(p&&(/[A-Za-z0-9一-鿿]/.test(p)))continue;
+      n=cnNum(m[5]);style='cn';disp=m[5];
+    }
+    else if(m[6]!=null){n=cnNum(m[6]);style='cnp';disp=m[6];}
+    if(n>0)marks.push({n:n,style:style,disp:disp,s:m.index,e:m.index+m[0].length});
   }
+  return marks;
+}
+function buildEnumGroups(marks){
+  // 同编号样式且编号连续 → 同一组；编号重启（5→1）自动另起一组
+  const groups=[];
+  for(const mk of marks){
+    const last=groups[groups.length-1];
+    if(last&&last.style===mk.style&&mk.n===last.last+1){last.items.push(mk);last.last=mk.n;}
+    else groups.push({style:mk.style,items:[mk],last:mk.n});
+  }
+  return groups;
+}
+function enumLeadLike(s){
+  s=(s||'').trim();
+  if(!s||s.length>26)return false;
+  return s.endsWith('：')||s.endsWith('】')||s.length<=14;
+}
+function splitEnum(text){
+  if(!text||text.length<16)return null;
+  const marks=findEnumMarks(text);
   if(marks.length<2)return null;
-  for(let i=1;i<marks.length;i++){
-    if(marks[i].n<=marks[i-1].n)return null;          // 编号必须严格递增
+  const groups=buildEnumGroups(marks);
+  if(!groups.some(g=>g.items.length>=2))return null;
+
+  const out=[]; let para=[], pos=0;
+  for(let gi=0;gi<groups.length;gi++){
+    const g=groups[gi];
+    const first=g.items[0].s;
+    para.push(text.slice(pos,first));
+    const nextStart=(gi+1<groups.length)?groups[gi+1].items[0].s:text.length;
+    if(g.items.length<2){                       // 孤立的单个序号：整段按普通文本走
+      para.push(text.slice(first,nextStart));
+      pos=nextStart; continue;
+    }
+    const items=[];
+    for(let k=0;k<g.items.length;k++){
+      const mk=g.items[k];
+      const end=(k+1<g.items.length)?g.items[k+1].s:nextStart;
+      items.push({n:mk.n,disp:mk.disp,text:text.slice(mk.e,end)});
+    }
+    // 末条尾部：若以「。」收尾且后面跟一句短引导语，切出来留给下一组
+    let consumed=items[items.length-1].text.length;
+    const tail=items[items.length-1].text, cut=tail.lastIndexOf('。');
+    if(cut>=0&&enumLeadLike(tail.slice(cut+1))){
+      items[items.length-1].text=tail.slice(0,cut+1);
+      consumed=cut+1;
+    }
+    for(const it of items) it.text=it.text.replace(/[；;，,、\s]+$/,'').trim();
+    const bare=t=>t.replace(/[\s，,。；;、]/g,'').length;
+    if(items.every(it=>bare(it.text)<4)){        // 全是两三个字的碎项就不分
+      para.push(text.slice(first,nextStart));
+      pos=nextStart; continue;
+    }
+    const ptxt=para.join('').trim();
+    if(ptxt)out.push({k:'p',text:ptxt});
+    para=[];
+    out.push({k:'l',items:items});
+    pos=g.items[g.items.length-1].e+consumed;
   }
-  const out=[];
-  if(marks[0].s>0){
-    const lead=text.slice(0,marks[0].s).trim();
-    if(lead)out.push({lead});
-  }
-  for(let i=0;i<marks.length;i++){
-    const from=marks[i].e, to=i+1<marks.length?marks[i+1].s:text.length;
-    const t=text.slice(from,to).replace(/[；;，,。\s]+$/,'').trim();
-    if(t)out.push({n:marks[i].n,t});
-  }
-  const items=out.filter(x=>x.n);
-  if(items.length<2)return null;
-  const bare=x=>x.t.replace(/[\s，,。；;、]/g,'').length;
-  if(items.every(x=>bare(x)<4))return null;          // 全是两三个字的碎项就不分
+  const ptxt=para.join('').trim();
+  if(ptxt)out.push({k:'p',text:ptxt});
+  if(!out.some(b=>b.k==='l'))return null;
   return out;
 }
 </script>
@@ -1429,7 +1522,7 @@ function splitEnum(text){
 const KEY='zhiche_srs_v2';
 const SCHEMA=1;   // 进度文件格式版本
 const DEFAULT={cards:{},log:{},stars:{},time:{},ans:{},fixes:[],goalHit:null,
-  settings:{newPerDay:30,revLimit:200,dailyGoal:60,theme:'auto',cfgVer:3},created:null};
+  settings:{newPerDay:30,revLimit:200,dailyGoal:60,theme:'auto',cfgVer:3,studyCat:'全部'},created:null};
 
 const CONFIG={
   intervals:[0,1,2,4,7,15,30,60],   // 复习间隔（天）
@@ -1467,7 +1560,7 @@ const App={
     this.bind(); this.buildSearchIndex(); this.initQuizCfg(); this.buildChips(); this.renderList();
     this.paintGoal(); this.renderStats();
     this.startClock();
-    this.buildQueues(); this.applyHash();
+    this.buildQueues(); this.buildCatChips(); this.applyHash();
   },
 
   load(){
@@ -1532,14 +1625,25 @@ const App={
     const rl=cfg.revLimit>0?cfg.revLimit:Infinity;   // 复习总量（两个板块合计）
     const np=cfg.newPerDay||0;                       // 新卡总量（两个板块合计）
     const kp=this.pools(false), ip=this.pools(true);
+    const focused=(cfg.studyCat||'全部')!=='全部';   // 背诵页锁定了某一个板块
 
-    // 先对半分，一方不够时把余量让给另一方
-    let kRev=Math.min(kp.due.length,Math.floor(rl/2));
-    let iRev=Math.min(ip.due.length,rl-kRev);
-    kRev=Math.min(kp.due.length,rl-iRev);
-    let kNew=Math.min(kp.fresh.length,Math.floor(np/2));
-    let iNew=Math.min(ip.fresh.length,np-kNew);
-    kNew=Math.min(kp.fresh.length,np-iNew);
+    let kRev,iRev,kNew,iNew;
+    if(focused){
+      // 锁定板块时常识优先：新卡额度全给该板块，成语只做复习（用剩余额度）
+      kNew=Math.min(kp.fresh.length,np);
+      iNew=0;
+      kRev=Math.min(kp.due.length,rl);
+      iRev=Math.min(ip.due.length,Math.max(0,rl-kRev));
+      kRev=Math.min(kp.due.length,Math.max(0,rl-iRev));
+    }else{
+      // 先对半分，一方不够时把余量让给另一方
+      kRev=Math.min(kp.due.length,Math.floor(rl/2));
+      iRev=Math.min(ip.due.length,rl-kRev);
+      kRev=Math.min(kp.due.length,rl-iRev);
+      kNew=Math.min(kp.fresh.length,Math.floor(np/2));
+      iNew=Math.min(ip.fresh.length,np-kNew);
+      kNew=Math.min(kp.fresh.length,np-iNew);
+    }
 
     this.queues.know=this.compose(kp,kRev,kNew);
     this.queues.idiom=this.compose(ip,iRev,iNew);
@@ -1550,14 +1654,66 @@ const App={
 
   pools(idiom){
     const t=this.today(),st=this.s.cards,due=[],fresh=[];
+    const only=(!idiom)?(this.s.settings.studyCat||'全部'):'全部';   // 背诵页板块筛选
     CARDS.forEach(c=>{
       if((c.cat==='成语')!==idiom)return;
+      if(only!=='全部'&&c.cat!==only)return;
       const p=st[c.id];
       if(!p){fresh.push(c);return}
       if(p.due&&p.due<=t)due.push(c);
     });
     due.sort((a,b)=>(st[a.id].due<st[b.id].due?-1:1));
     return {due,fresh};
+  },
+
+  /* 背诵页的板块筛选条：只列常识板块（成语是独立页，无需筛） */
+  buildCatChips(){
+    const box=document.getElementById('catChips');
+    if(!box)return;
+    const cats=CATS.filter(c=>c!=='成语');
+    const total={};
+    CARDS.forEach(c=>{ if(c.cat==='成语')return; total[c.cat]=(total[c.cat]||0)+1; });
+    const cur=this.s.settings.studyCat||'全部';
+    const list=['全部'].concat(cats.filter(c=>total[c]));
+    box.innerHTML='';
+    list.forEach(c=>{
+      const b=document.createElement('button');
+      b.className='catchip'+(c===cur?' on':'');
+      b.innerHTML=(c==='全部'?('全部板块<i>'+CARDS.filter(x=>x.cat!=='成语').length+'</i>'):(esc(c)+'<i>'+(total[c]||0)+'</i>'));
+      b.onclick=()=>this.setStudyCat(c);
+      box.appendChild(b);
+    });
+    // 当前板块今天还有多少张可学
+    const t=this.today(),st=this.s.cards;
+    let due=0,fresh=0;
+    CARDS.forEach(c=>{
+      if(c.cat==='成语')return;
+      if(cur!=='全部'&&c.cat!==cur)return;
+      const p=st[c.id];
+      if(!p)fresh++; else if(p.due&&p.due<=t)due++;
+    });
+    this._catPending=(due+fresh);
+    const lab=document.getElementById('queueLabel');
+    if(lab&&this.scope==='know'&&this.mode==='recite'){
+      lab.textContent=(cur==='全部'?'常识':cur)+' · 待学 '+(due+fresh)+' 张';
+    }
+    const row=document.getElementById('catRow');
+    if(row)row.style.display=(this.scope==='idiom'||!cats.length)?'none':'';
+  },
+
+  setStudyCat(cat){
+    const cfg=this.s.settings;
+    if(cfg.studyCat===cat)return;
+    cfg.studyCat=cat;
+    this.save();
+    // 保留成语队列，只重排常识队列
+    const keep=this.queues.idiom;
+    this.buildQueues();
+    this.queues.idiom=keep;
+    this.activate('know');
+    this.buildCatChips();
+    const n=this.queue.length;
+    this.toast(cat==='全部'?'已切回全部板块':(cat+'：今天 '+n+' 张待学'));
   },
 
   compose(pool,revN,newN){
@@ -1602,13 +1758,15 @@ const App={
   extra(){
     const seen=new Set(Object.keys(this.s.cards));
     const idiom=this.scope==='idiom';
-    const pool=CARDS.filter(c=>!seen.has(c.id)&&((c.cat==='成语')===idiom)).slice(0,10);
+    const only=(!idiom)?(this.s.settings.studyCat||'全部'):'全部';
+    const pool=CARDS.filter(c=>!seen.has(c.id)&&((c.cat==='成语')===idiom)&&(only==='全部'||c.cat===only)).slice(0,10);
     if(!pool.length){this.toast('这个板块的卡都学过了');return}
     this.queue.push(...pool.map(c=>({c,isNew:true})));
     this.queues[this.scope].list=this.queue;
     this.queues[this.scope].n+=pool.length;
     document.getElementById(idiom?'doneI':'done').classList.remove('on');
     this.render();
+    this.buildCatChips();
   },
 
   render(){
@@ -1655,25 +1813,26 @@ const App={
     const seg=splitEnum(text);
     if(!seg){ el.textContent=text; return; }
     el.innerHTML='';
-    seg.forEach(p=>{
-      if(p.lead){
+    seg.forEach(b=>{
+      if(b.k==='p'){
         const d=document.createElement('div');
         d.className='rlead';
-        d.textContent=p.lead;
+        d.textContent=b.text;
         el.appendChild(d);
       }else{
-        const d=document.createElement('div');
-        d.className='it';
-        const i=document.createElement('i');
-        i.textContent=p.n;
-        const s=document.createElement('span');
-        s.textContent=p.t;
-        d.appendChild(i);d.appendChild(s);
-        el.appendChild(d);
+        b.items.forEach(it=>{
+          const d=document.createElement('div');
+          d.className='it';
+          const i=document.createElement('i');
+          i.textContent=it.disp||it.n;
+          const s=document.createElement('span');
+          s.textContent=it.text;
+          d.appendChild(i);d.appendChild(s);
+          el.appendChild(d);
+        });
       }
     });
-    if(!seg)el.classList.remove('enum');
-    else if(!el.classList.contains('enum'))el.classList.add('enum');
+    if(!el.classList.contains('enum'))el.classList.add('enum');
   },
 
   /* 填空模式：同样的分段，但每段里要能放挖空 */
@@ -1682,20 +1841,24 @@ const App={
     const seg=splitEnum(q.t);
     if(!seg){ this.appendFillText(el,q.t,q); el.classList.remove('enum'); return; }
     el.innerHTML='';
-    seg.forEach(p=>{
-      const d=document.createElement('div');
-      if(p.lead){
+    seg.forEach(b=>{
+      if(b.k==='p'){
+        const d=document.createElement('div');
         d.className='qlead';
-        this.appendFillText(d,p.lead,q);
+        this.appendFillText(d,b.text,q);
+        el.appendChild(d);
       }else{
-        d.className='it';
-        const i=document.createElement('i');
-        i.textContent=p.n;
-        const s=document.createElement('span');
-        d.appendChild(i);d.appendChild(s);
-        this.appendFillText(s,p.t,q);
+        b.items.forEach(it=>{
+          const d=document.createElement('div');
+          d.className='it';
+          const i=document.createElement('i');
+          i.textContent=it.disp||it.n;
+          const s=document.createElement('span');
+          d.appendChild(i);d.appendChild(s);
+          this.appendFillText(s,it.text,q);
+          el.appendChild(d);
+        });
       }
-      el.appendChild(d);
     });
     if(!el.classList.contains('enum'))el.classList.add('enum');
   },
@@ -1721,7 +1884,7 @@ const App={
     const item=this.queue[this.idx];if(!item)return;
     const c=item.c,p=this.s.cards[c.id];
     const lv=p?Math.max(p.lv||0,1):0;
-    document.getElementById('queueLabel').textContent='常识 · '+(item.isNew?'新卡':('复习 第'+lv+'轮'));
+    document.getElementById('queueLabel').textContent=(c.cat==='成语'?'常识':c.cat)+' · '+(item.isNew?'新卡':('复习 第'+lv+'轮'));
     document.getElementById('rTag').textContent=c.cat;
     document.getElementById('rTitle').textContent=c.front;
     this.paintEnum(document.getElementById('rBody'),c.back);
@@ -1849,7 +2012,7 @@ const App={
     const sec=this._qAt?Math.min(CONFIG.maxAnswerSec,Math.round((Date.now()-this._qAt)/1000)):0;
     const {c}=this.queue[this.idx],t=this.today();
     let p=this.s.cards[c.id];
-    if(!p)p=this.s.cards[c.id]={lv:0,due:t,right:0,wrong:0,streak:0,seen:0,born:t};
+    if(!p)p=this.s.cards[c.id]={lv:0,due:t,right:0,wrong:0,fuzzy:0,streak:0,seen:0,born:t};
     p.seen=(p.seen||0)+1;
     if(g===2){
       p.right++;p.streak=(p.streak||0)+1;
@@ -1858,6 +2021,7 @@ const App={
       p.due=this.addDays(t,this.INTERVALS[p.lv]||1);
       this.session.ok++;
     }else if(g===1){
+      p.fuzzy=(p.fuzzy||0)+1;                 // 模糊单独计数，不混进对错
       p.streak=0;p.lv=Math.max(1,p.lv||0);p.due=this.addDays(t,1);this.session.ok+=0.5;
     }else{
       p.wrong++;p.streak=0;p.lv=0;p.due=this.addDays(t,1);
@@ -1914,6 +2078,7 @@ const App={
         document.getElementById(b.dataset.v).classList.add('on');
         if(b.dataset.v==='today')this.activate('know');
         if(b.dataset.v==='idiom')this.activate('idiom');
+        if(b.dataset.v==='today'||b.dataset.v==='idiom')this.buildCatChips();
         if(b.dataset.v==='stats')this.renderStats();
         if(b.dataset.v==='library'){this.toggleDrop(false);this.buildChips();this.renderList();}
         if(b.dataset.v==='quiz'){ this.initQuizCfg(); if(!this.qx.list.length)this.showQxScreen('start'); }
@@ -3064,6 +3229,7 @@ const App={
     this.paintGoal();
     this.updateHeader();
     this.renderCalendar();
+    this.renderVolume();
 
     const week=document.getElementById('week');week.innerHTML='';
     const t=this.today();let total7=0,max=1;const buckets=[];
@@ -3091,6 +3257,59 @@ const App={
       dist.appendChild(row);
     });
     this.renderMetrics();
+  },
+
+  /* ============ 学习量统计：学过 / 背过 / 模糊 / 刷过 ============ */
+  renderVolume(){
+    const st=this.s.cards, ids=Object.keys(st);
+    let seenN=0,passN=0,fuzzyN=0,doneN=0,right=0,fuzzy=0,wrong=0,seenT=0;
+    ids.forEach(k=>{
+      const p=st[k]||{};
+      const s=p.seen||0, r=p.right||0, w=p.wrong||0, f=p.fuzzy||0;
+      if(s>0)seenN++;
+      if(r>0)passN++;
+      if(f>0)fuzzyN++;
+      if(r>0||f>0||w>0)doneN++;
+      right+=r;wrong+=w;fuzzy+=f;seenT+=s;
+    });
+    const set=(id,v,u)=>{const el=document.getElementById(id);if(el)el.innerHTML=v+'<i>'+u+'</i>';};
+    set('lvSeen',seenN,'张'); set('lvPass',passN,'张');
+    set('lvFuzzy',fuzzyN,'张'); set('lvDone',doneN,'张');
+    set('lvRight',right,'次'); set('lvFzT',fuzzy,'次');
+    set('lvWrong',wrong,'次'); set('lvSeenT',seenT,'次');
+
+    // 各板块学习量明细
+    const box=document.getElementById('lvDist');
+    if(!box)return;
+    box.innerHTML='';
+    const rows=CATS.map(cat=>{
+      let seen=0,pass=0,fz=0,done=0;
+      CARDS.forEach(c=>{
+        if(c.cat!==cat)return;
+        const p=st[c.id]; if(!p)return;
+        const s=p.seen||0,r=p.right||0,w=p.wrong||0,f=p.fuzzy||0;
+        if(s>0)seen++;
+        if(r>0)pass++;
+        if(f>0)fz++;
+        if(r>0||f>0||w>0)done++;
+      });
+      return {cat:cat,seen:seen,pass:pass,fz:fz,done:done};
+    }).filter(x=>x.seen>0).sort((a,b)=>b.seen-a.seen);
+
+    if(!rows.length){
+      box.innerHTML='<div class="chartEmpty" style="height:62px">还没有学习记录<br>在背诵 / 填空 / 成语里评几张卡就会出现</div>';
+      return;
+    }
+    rows.forEach(x=>{
+      const row=document.createElement('div');
+      row.className='row';
+      row.innerHTML='<span class="nm">'+esc(x.cat)+'</span>'+
+        '<span class="tr"><i style="width:'+Math.max(2,Math.round(x.done/Math.max(1,rows[0].done)*100))+'%"></i></span>'+
+        '<span class="cnt">'+x.seen+'/'+x.pass+'/'+x.fz+'/'+x.done+'</span>'+
+        '<b>'+x.done+' 张</b>';
+      row.title=x.cat+'：学过 '+x.seen+' 张 · 背过 '+x.pass+' 张 · 模糊 '+x.fz+' 张 · 刷过 '+x.done+' 张';
+      box.appendChild(row);
+    });
   },
 
   /* ============ 卡片纠错（本地记录，可一键复制） ============ */
