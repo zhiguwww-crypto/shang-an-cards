@@ -9,6 +9,14 @@
     document.documentElement.dataset.theme=name;
   }catch(e){document.documentElement.dataset.theme='zhi';}
 })();
+/* 小红书小工具容器：标记 mt-shell，顶栏为作者头像/转发浮层让位 */
+(function(){
+  var d=document.documentElement;
+  function mark(){ if(window.xhs&&window.xhs.miniTool){ d.classList.add('mt-shell'); return true; } return false; }
+  if(mark())return;
+  var n=0;
+  var timer=setInterval(function(){ n++; if(mark()||n>20){ clearInterval(timer); } },300);
+})();
 /* 微信内置浏览器（X5 / XWeb）适配：标记内核类型 + 视口高度兜底 */
 (function(){
   var d=document.documentElement, ua=navigator.userAgent||'';
