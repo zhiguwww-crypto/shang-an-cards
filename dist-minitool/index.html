@@ -61,11 +61,6 @@ header{
   background:var(--header-bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
   z-index:20;
 }
-/* 小工具容器：顶部有作者头像/转发浮层，顶栏下移并左右避让（js 检测 window.xhs 后加 mt-shell） */
-html.mt-shell header{
-  padding-top:56px;padding-left:58px;padding-right:58px;
-  padding-top:calc(56px + env(safe-area-inset-top,0px));
-}
 .brand{display:flex;align-items:baseline;gap:9px;min-width:0}
 .brand h1{font-family:var(--serif);font-size:17px;letter-spacing:2px;font-weight:600;white-space:nowrap}
 .brand em{font-style:normal;font-size:10.5px;color:var(--ink-3);letter-spacing:1.5px;white-space:nowrap}
@@ -957,6 +952,12 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
   .card{--flip:.001s}
 }
 
+
+/* —— 小工具容器：顶部作者头像/转发浮层避让（js 检测 window.xhs 后加 mt-shell） —— */
+html.mt-shell header{
+  padding-top:56px;padding-left:58px;padding-right:58px;
+  padding-top:calc(56px + env(safe-area-inset-top,0px));
+}
 /* —— Chrome 61 基线兜底（构建期生成）：inset 展开 / flex-gap margin / grid-gap —— */
 .no-flex-gap /* ---------- 顶栏 ---------- */
 header > * + *{margin-left:14px}
