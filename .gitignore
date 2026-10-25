@@ -13,6 +13,9 @@ outputs/
 data/issued.json
 data/progress.json
 
+# 截图中间帧（GIF 合成原料）
+docs/shots/frames/
+
 # Python
 __pycache__/
 *.pyc

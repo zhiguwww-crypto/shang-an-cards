@@ -126,6 +126,51 @@
 
 ---
 
+## 📸 界面速览
+
+<table>
+  <tr>
+    <td align="center" valign="top">
+      <img src="docs/shots/demo-flip.gif" width="330"><br>
+      <sub>🎴 成语翻卡——点击翻面看释义与拼音</sub>
+    </td>
+    <td align="center" valign="top">
+      <img src="docs/shots/demo-fill.gif" width="400"><br>
+      <sub>📝 背诵模式——考点挖空，点空格逐个揭晓</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" valign="top">
+      <img src="docs/shots/demo-fireworks.gif" width="400"><br>
+      <sub>🎆 每日目标达成——礼花 + 鼓励语</sub>
+    </td>
+    <td align="center" valign="top">
+      <img src="docs/shots/know-memo.png" width="400"><br>
+      <sub>📖 记忆模式——知识点铺开读，板块筛选 + 打乱 / 顺序</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" valign="top">
+      <img src="docs/shots/quiz.png" width="400"><br>
+      <sub>⚡ 四选一测验——计时、正确率、错题回顾</sub>
+    </td>
+    <td align="center" valign="top">
+      <img src="docs/shots/stats.png" width="400"><br>
+      <sub>📊 数据看板——学习量 / 正确率 / 学习日历热力图</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" valign="top">
+      <img src="docs/shots/library.png" width="400"><br>
+      <sub>📚 卡片库——2555 张全量浏览与折叠筛选</sub>
+    </td>
+    <td align="center" valign="top">
+      <img src="docs/shots/mobile-home.png" width="280"><br>
+      <sub>📱 手机端同样顺手，微信里点开就能用</sub>
+    </td>
+  </tr>
+</table>
+
 ## 🎁 更多细节
 
 | 功能 | 说明 |
