@@ -634,6 +634,41 @@ try{
   })());
   ok('Q7 各板块学习量明细有行', document.querySelectorAll('#lvDist .row').length>=0);
 
+  /* ---------- R 队列重排 / 去重 ---------- */
+  ok('R1 打乱/顺序按钮两个板块都有', !!document.getElementById('orderSeg') && !!document.getElementById('orderSegI'));
+  ok('R2 导航改名常识、模式改名记忆',
+     document.querySelector('nav button[data-v="today"]').textContent.trim()==='常识' &&
+     document.querySelector('#studySeg .schip[data-m="recite"]').textContent.trim()==='记忆');
+
+  // 构造可控队列：已答 2 张 + 剩余 5 张
+  const rCards=CARDS.filter(c=>c.cat!=='成语').slice(0,7);
+  App.scope='know'; App.idx=2; App.mode=App.mode||'recite';
+  App.queue=rCards.map(c=>({c,isNew:false}));
+  App.queues.know.list=App.queue;
+  const beforeIds=App.queue.map(x=>x.c.id).join(',');
+  App.orderQueue();
+  const orderedIds=App.queue.map(x=>x.c.id).join(',');
+  const ordMap=new Map(CARDS.map((c,i)=>[c.id,i]));
+  let sortedAsc=true;
+  for(let i=2;i<App.queue.length;i++){ if((ordMap.get(App.queue[i].c.id)||0)<(ordMap.get(App.queue[i-1].c.id)||0))sortedAsc=false; }
+  ok('R3 顺序=按库内序排列剩余队列', App.queue.length===7 && beforeIds.slice(0,6)===orderedIds.slice(0,6) && sortedAsc,
+     '已答前缀不变:'+ (beforeIds.slice(0,6)===orderedIds.slice(0,6)));
+  App.shuffleQueue();
+  const shuffledIds=App.queue.slice(2).map(x=>x.c.id).sort().join(',');
+  const restIds=beforeIds.split(',').slice(2).sort().join(',');
+  ok('R4 打乱=剩余队列同批重排', App.queue.length===7 && shuffledIds===restIds);
+  ok('R5 重排后进度不回跳', App.idx===2);
+
+  // extra() 去重：队列里没答过的卡不应再次追加
+  const dupProbe=CARDS.find(c=>c.cat!=='成语'&&!App.s.cards[c.id]);
+  App.queue=[{c:dupProbe,isNew:false}];
+  App.queues.know.list=App.queue; App.idx=0; App.queues.know.n=0;
+  App.extra();
+  const dupCount=App.queue.filter(x=>x.c.id===dupProbe.id).length;
+  ok('R6 再来一批不重复追加已有卡', dupCount===1 && App.queue.length===11, '探针卡出现 '+dupCount+' 次 · 队列 '+App.queue.length+' 张');
+  // 恢复真实队列
+  App.buildQueues();
+
   /* ---------- H 设置 ---------- */
   document.getElementById('btnSet').click();
   await sleep(60);

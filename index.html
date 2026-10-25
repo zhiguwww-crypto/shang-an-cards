@@ -303,8 +303,8 @@ main{flex:1;min-height:0;position:relative}
 
 
 /* ---------- 模式切换 / 填空 ---------- */
-.modebar{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;
-  gap:10px;width:100%;max-width:var(--maxw);margin:0 auto;padding:12px 22px 0}
+.modebar{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;
+  gap:8px 10px;width:100%;max-width:var(--maxw);margin:0 auto;padding:12px 22px 0}
 .plabel{font-size:11.5px;letter-spacing:.5px;color:var(--ink-2)}
 .segbox{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
 .seghint{font-size:10px;color:var(--ink-3);letter-spacing:.4px}
@@ -993,10 +993,17 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
       <span class="plabel" id="queueLabel">常识 · 准备中</span>
       <div class="segbox">
         <div class="segchips" id="studySeg">
-          <button class="schip on" data-m="recite">背诵</button>
-          <button class="schip" data-m="fill">填空</button>
+          <button class="schip on" data-m="recite">记忆</button>
+          <button class="schip" data-m="fill">背诵</button>
         </div>
         <span class="seghint">点此切换模式</span>
+      </div>
+      <div class="segbox">
+        <div class="segchips" id="orderSeg">
+          <button class="schip" data-o="shuffle">打乱</button>
+          <button class="schip" data-o="order">顺序</button>
+        </div>
+        <span class="seghint">重排剩余队列</span>
       </div>
     </div>
     <div class="catrow" id="catRow">
@@ -1073,6 +1080,13 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
     <div class="modebar">
       <span class="plabel" id="idlLabel">成语翻卡</span>
       <span class="plabel" id="idlMeta">点击卡片翻面</span>
+      <div class="segbox">
+        <div class="segchips" id="orderSegI">
+          <button class="schip" data-o="shuffle">打乱</button>
+          <button class="schip" data-o="order">顺序</button>
+        </div>
+        <span class="seghint">重排剩余队列</span>
+      </div>
     </div>
     <div class="prow">
       <div class="track"><div class="fill" id="fillI"></div></div>
@@ -1310,7 +1324,7 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
           <button onclick="App.exportFixDraft()">校正草稿（<span id="fixN">0</span>）</button>
           <button onclick="App.reset()">清空进度</button>
         </div>
-        <p class="metricNote">在背诵页看到内容有问题，点卡片右上角「✎ 纠错」记一笔；「校正草稿」会把它们整理成 overrides.json 的格式（附当前正文和你的说明），下载或复制后发我，我改完重新构建就生效。</p>
+        <p class="metricNote">在记忆页看到内容有问题，点卡片右上角「✎ 纠错」记一笔；「校正草稿」会把它们整理成 overrides.json 的格式（附当前正文和你的说明），下载或复制后发我，我改完重新构建就生效。</p>
         <div class="fixlist" id="fixList"></div>
       </div>
     </div>
@@ -1318,7 +1332,7 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
 </main>
 
 <nav>
-  <button class="on" data-v="today"><svg viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 015.5 4H11v16H5.5A1.5 1.5 0 014 18.5z"/><path d="M11 4h6.5A1.5 1.5 0 0119 5.5v13a1.5 1.5 0 01-1.5 1.5H11"/></svg>背诵</button>
+  <button class="on" data-v="today"><svg viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 015.5 4H11v16H5.5A1.5 1.5 0 014 18.5z"/><path d="M11 4h6.5A1.5 1.5 0 0119 5.5v13a1.5 1.5 0 01-1.5 1.5H11"/></svg>常识</button>
   <button data-v="idiom"><svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M7.5 9h9M7.5 12.5h6"/><path d="M12 19.5V21" stroke-width="1.6"/></svg>成语</button>
   <button data-v="quiz"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 114 2c-.7.6-1.5 1-1.5 2"/><path d="M12 17h.01" stroke-width="2.2"/></svg>测验</button>
   <button data-v="library"><svg viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 015.5 4H15v16H5.5A1.5 1.5 0 014 18.5z"/><path d="M15 7h4.5A1.5 1.5 0 0121 8.5v11"/></svg>卡片库</button>
@@ -1757,16 +1771,41 @@ const App={
 
   extra(){
     const seen=new Set(Object.keys(this.s.cards));
+    const inQ=new Set(this.queue.map(x=>x.c.id));   // 队列里还没答的卡也不能再进，否则重复出现
     const idiom=this.scope==='idiom';
     const only=(!idiom)?(this.s.settings.studyCat||'全部'):'全部';
-    const pool=CARDS.filter(c=>!seen.has(c.id)&&((c.cat==='成语')===idiom)&&(only==='全部'||c.cat===only)).slice(0,10);
+    const pool=CARDS.filter(c=>!seen.has(c.id)&&!inQ.has(c.id)&&((c.cat==='成语')===idiom)&&(only==='全部'||c.cat===only));
     if(!pool.length){this.toast('这个板块的卡都学过了');return}
-    this.queue.push(...pool.map(c=>({c,isNew:true})));
+    // 洗牌后取 10 张：固定按库序截取会连点几次都出同样一批
+    for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
+    this.queue.push(...pool.slice(0,10).map(c=>({c,isNew:true})));
     this.queues[this.scope].list=this.queue;
-    this.queues[this.scope].n+=pool.length;
+    this.queues[this.scope].n+=Math.min(10,pool.length);
     document.getElementById(idiom?'doneI':'done').classList.remove('on');
     this.render();
     this.buildCatChips();
+  },
+
+  /* 重排当前板块「还没答」的剩余队列（已答的不动，进度不受影响） */
+  _reorderRest(fn,label){
+    const rest=this.queue.slice(this.idx);
+    if(rest.length<2){this.toast('剩余不足两张，无需重排');return}
+    fn(rest);
+    this.queue.splice(this.idx,rest.length,...rest);
+    this.queues[this.scope].list=this.queue;
+    this.render();
+    this.toast(label+' '+rest.length+' 张');
+  },
+  shuffleQueue(){
+    this._reorderRest(rest=>{
+      for(let i=rest.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[rest[i],rest[j]]=[rest[j],rest[i]];}
+    },'已随机打乱剩余');
+  },
+  orderQueue(){
+    const ord=new Map(CARDS.map((c,i)=>[c.id,i]));   // 库内原始顺序
+    this._reorderRest(rest=>{
+      rest.sort((a,b)=>(ord.get(a.c.id)||0)-(ord.get(b.c.id)||0));
+    },'已按顺序排列剩余');
   },
 
   render(){
@@ -2116,6 +2155,9 @@ const App={
     });
     document.querySelectorAll('#studySeg .schip').forEach(b=>{
       b.addEventListener('click',()=>this.setMode(b.dataset.m));
+    });
+    document.querySelectorAll('#orderSeg .schip,#orderSegI .schip').forEach(b=>{
+      b.addEventListener('click',()=>{ b.dataset.o==='shuffle'?this.shuffleQueue():this.orderQueue(); });
     });
     document.querySelectorAll('#qxNums button').forEach(b=>{
       b.addEventListener('click',()=>{
@@ -2983,7 +3025,7 @@ const App={
     box.innerHTML='';
     if(sum<=0){
       box.style.height='auto';
-      box.innerHTML='<div class="chartEmpty">暂无学习时长记录<br>在背诵 / 填空 / 成语 / 测验里待上几分钟就会出现</div>';
+      box.innerHTML='<div class="chartEmpty">暂无学习时长记录<br>在记忆 / 背诵 / 成语 / 测验里待上几分钟就会出现</div>';
       return;
     }
     box.style.height='';
@@ -3297,7 +3339,7 @@ const App={
     }).filter(x=>x.seen>0).sort((a,b)=>b.seen-a.seen);
 
     if(!rows.length){
-      box.innerHTML='<div class="chartEmpty" style="height:62px">还没有学习记录<br>在背诵 / 填空 / 成语里评几张卡就会出现</div>';
+      box.innerHTML='<div class="chartEmpty" style="height:62px">还没有学习记录<br>在记忆 / 背诵 / 成语里评几张卡就会出现</div>';
       return;
     }
     rows.forEach(x=>{
