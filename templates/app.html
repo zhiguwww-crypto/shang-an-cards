@@ -224,6 +224,58 @@ main{flex:1;min-height:0;position:relative}
 .fex{margin-top:18px;padding-top:16px;border-top:1px dashed var(--line);font-size:13px;line-height:1.9;color:var(--ink-2);position:relative;z-index:2}
 .fex em{font-style:normal;color:var(--ink-3);font-size:10.5px;letter-spacing:1.5px;display:block;margin-bottom:7px}
 
+/* ---------- 账号与云同步 ---------- */
+.acct .acctNote{font-size:11.5px;line-height:1.7;color:var(--ink-3);margin:2px 0 10px}
+.acct .acctSub{font-size:11px;color:var(--ink-3);margin:10px 0 6px}
+.acctErr{font-size:11.5px;color:#b3382e;line-height:1.6;margin:0 0 8px}
+.acctWho{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:2px 0 8px}
+.acctWho b{font-size:13px;color:var(--ink);letter-spacing:.3px}
+.acctWho small{font-size:10.5px;color:var(--ink-3)}
+.acctRow{display:flex;flex-wrap:wrap}
+.acctRow .acctBtn{margin:0 8px 8px 0}
+.acctBtn{padding:8px 14px;border-radius:10px;border:1px solid var(--line-2);background:var(--card);
+  color:var(--ink);font-size:12px;letter-spacing:.4px;-webkit-appearance:none;appearance:none}
+.acctBtn.primary{background:var(--ink);border-color:var(--ink);color:var(--on-ink)}
+.acctBtn.ghost{color:var(--ink-2);background:transparent}
+.acctDevices{margin-top:4px}
+.acctDev{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:8px 10px;border:1px solid var(--line-2);border-radius:10px;margin-bottom:8px;background:var(--card)}
+.acctDev.cur{border-color:var(--ink-3)}
+.acctDev b{display:block;font-size:12px;color:var(--ink);font-weight:600}
+.acctDev small{font-size:10px;color:var(--ink-3)}
+.acctMini{padding:5px 9px;border-radius:8px;border:1px solid var(--line-2);background:transparent;
+  color:var(--ink-2);font-size:10.5px;-webkit-appearance:none;appearance:none}
+
+/* 登录弹层 */
+.authModal{position:fixed;top:0;right:0;bottom:0;left:0;z-index:970;background:rgba(28,25,23,.5);
+  display:none;align-items:center;justify-content:center;padding:18px}
+.authModal.on{display:flex}
+.authCard{position:relative;background:var(--card);border-radius:18px;padding:20px 18px 16px;
+  width:100%;max-width:400px;max-height:88vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.authCard h2{font-family:var(--serif);font-size:17px;letter-spacing:1.5px;margin-bottom:14px;color:var(--ink)}
+.authX{position:absolute;top:8px;right:10px;width:32px;height:32px;border:none;background:transparent;
+  font-size:20px;line-height:1;color:var(--ink-3)}
+.authTabs{display:flex;margin-bottom:14px}
+.authTabs button{flex:1;padding:8px 4px;border:none;background:transparent;color:var(--ink-3);
+  font-size:12px;letter-spacing:.4px;border-bottom:2px solid transparent;-webkit-appearance:none;appearance:none}
+.authTabs button.on{color:var(--ink);border-bottom-color:var(--ink);font-weight:600}
+.authCard label{display:block;font-size:10.5px;color:var(--ink-3);letter-spacing:.5px;margin:10px 0 5px}
+.authCard input{width:100%;padding:10px 12px;border:1px solid var(--line-2);border-radius:10px;
+  background:var(--paper-2,#f7f2e9);color:var(--ink);font-size:13px;-webkit-appearance:none;appearance:none}
+.authCard input:focus{outline:none;border-color:var(--ink-3)}
+.authInline{display:flex}
+.authInline input{flex:1;min-width:0}
+.authCode{margin-left:8px;padding:0 12px;border:1px solid var(--line-2);border-radius:10px;
+  background:var(--card);color:var(--ink);font-size:11.5px;white-space:nowrap;-webkit-appearance:none;appearance:none}
+.authCode:disabled{color:var(--ink-3)}
+.authGo{width:100%;margin-top:14px;padding:11px;border:none;border-radius:11px;background:var(--ink);
+  color:var(--on-ink);font-size:13.5px;letter-spacing:1px;-webkit-appearance:none;appearance:none}
+.authGo:disabled{opacity:.6}
+.authMsg{font-size:11.5px;line-height:1.6;margin-top:10px;min-height:16px;color:var(--ink-3)}
+.authMsg.bad{color:#b3382e}
+.authMsg.ok{color:#3f6b4a}
+.authFoot{font-size:10.5px;line-height:1.7;color:var(--ink-3);margin-top:8px}
+
 /* ---------- 小工具文本分享/粘贴导入弹层 ---------- */
 .mt-share{position:fixed;top:0;right:0;bottom:0;left:0;z-index:960;background:rgba(28,25,23,.5);
   display:flex;align-items:center;justify-content:center;padding:20px}
@@ -1247,6 +1299,12 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
 
   <section class="view" id="stats">
     <div class="view-inner" style="padding-bottom:40px">
+      <!--MT-SYNC-UI-START-->
+      <div class="panel acct" id="acctPanel">
+        <h3>账号与云同步<em>换设备登录即可接着刷</em></h3>
+        <div id="acctBody"><p class="acctNote">云同步正在初始化…</p></div>
+      </div>
+      <!--MT-SYNC-UI-END-->
       <div class="kpis">
         <div class="kpi"><span>卡片总数</span><b id="sTotal">0</b></div>
         <div class="kpi"><span>已学</span><b id="sSeen">0<i>张</i></b></div>
@@ -1347,6 +1405,56 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
     </div>
   </section>
 </main>
+
+<!--MT-SYNC-UI-START-->
+<div class="authModal" id="authModal">
+  <div class="authCard">
+    <button class="authX" id="authClose" aria-label="关闭">×</button>
+    <h2>登录 / 注册</h2>
+    <div class="authTabs" id="authTabs">
+      <button data-tab="otp" class="on">验证码</button>
+      <button data-tab="pwd">密码</button>
+      <button data-tab="reset">找回密码</button>
+    </div>
+    <div class="authPane" id="authOtp">
+      <label>邮箱或手机号</label>
+      <input id="authOtpId" placeholder="you@example.com 或 11 位手机号" autocomplete="username">
+      <div class="authInline">
+        <input id="authOtpCode" placeholder="验证码" inputmode="numeric" autocomplete="one-time-code">
+        <button class="authCode" id="authOtpSend">获取验证码</button>
+      </div>
+      <input id="authOtpPw" type="password" placeholder="设置密码（可选，仅新账号）" autocomplete="new-password">
+      <button class="authGo" id="authOtpGo">登录 / 注册</button>
+    </div>
+    <div class="authPane" id="authPwd" style="display:none">
+      <label>邮箱或手机号</label>
+      <input id="authPwdId" autocomplete="username">
+      <label>密码</label>
+      <input id="authPwdPw" type="password" autocomplete="current-password">
+      <button class="authGo" id="authPwdGo">登录</button>
+    </div>
+    <div class="authPane" id="authReset" style="display:none">
+      <label>注册邮箱</label>
+      <input id="authResetEmail" autocomplete="email">
+      <div class="authInline">
+        <input id="authResetCode" placeholder="邮件验证码" inputmode="numeric">
+        <button class="authCode" id="authResetSend">获取验证码</button>
+      </div>
+      <input id="authResetPw" type="password" placeholder="新密码（至少 6 位）" autocomplete="new-password">
+      <button class="authGo" id="authResetGo">重置密码</button>
+    </div>
+    <div class="authPane" id="authChg" style="display:none">
+      <label>当前密码</label>
+      <input id="authChgOld" type="password" autocomplete="current-password">
+      <label>新密码</label>
+      <input id="authChgNew" type="password" autocomplete="new-password">
+      <button class="authGo" id="authChgGo">修改密码</button>
+    </div>
+    <p class="authMsg" id="authMsg"></p>
+    <p class="authFoot">进度只与你的账号绑定。不登录也能照常刷题，登录后自动同步到云端。</p>
+  </div>
+</div>
+<!--MT-SYNC-UI-END-->
 
 <nav>
   <button class="on" data-v="today"><svg viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 015.5 4H11v16H5.5A1.5 1.5 0 014 18.5z"/><path d="M11 4h6.5A1.5 1.5 0 0119 5.5v13a1.5 1.5 0 01-1.5 1.5H11"/></svg>常识</button>
@@ -1549,6 +1657,12 @@ function splitEnum(text){
   return out;
 }
 </script>
+<!--MT-SYNC-UI-START-->
+<script src="https://cdn.jsdelivr.net/npm/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js"></script>
+<script>
+__SYNC__
+</script>
+<!--MT-SYNC-UI-END-->
 <script>
 const KEY='zhiche_srs_v2';
 const SCHEMA=1;   // 进度文件格式版本
@@ -1614,6 +1728,20 @@ const App={
   save(){
     try{ this.s.schema=SCHEMA; localStorage.setItem(KEY,JSON.stringify(this.s)); }
     catch(e){ this.toast('浏览器禁用了本地存储，进度无法保存'); }
+    if(window.MTSync)window.MTSync.markDirty();     // 登录状态下触发增量同步（未登录为空操作）
+  },
+
+  /* 云端合并结果落地：整体替换本地状态并重绘（不主动再触发上传） */
+  applyRemote(st){
+    if(!st||typeof st!=='object')return;
+    this.s=st;
+    try{ this.s.schema=SCHEMA; localStorage.setItem(KEY,JSON.stringify(this.s)); }catch(e){}
+    this.applyTheme(this.s.settings&&this.s.settings.theme||'auto');
+    this.buildQueues();
+    this.buildCatChips&&this.buildCatChips();
+    this.paintGoal&&this.paintGoal();
+    if(this.s.scope!==undefined){} 
+    this.render();
   },
 
   today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')},
@@ -3709,6 +3837,15 @@ document.addEventListener('click',function(e){
   fn.apply(App,args);
 });
 App.boot();
+
+/* 云同步引导（仅网页版存在 MTSync；离线包会被构建剔除） */
+if(window.MTSync){
+  window.MTSync.bind({
+    get:function(){ return App.s; },
+    set:function(st){ App.applyRemote(st); }
+  });
+  window.MTSync.boot();
+}
 </script>
 </body>
 </html>

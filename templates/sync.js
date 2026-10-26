@@ -1,0 +1,675 @@
+/*!
+ * MTSync — 账号登录 + 跨设备进度同步（仅网页版）
+ * 依赖 CDN 全局 WorkBuddyCloud；小工具离线包构建时会整段剔除。
+ * 设计：progress 单行快照 + rev 乐观锁；客户端按字段合并，冲突时拉取→合并→重试。
+ */
+(function () {
+  'use strict';
+
+  var CFG = {
+    endpoint: 'https://zhiche-cards.app.workbuddy.host',
+    oauthRelayBaseUrl: 'https://www.workbuddy.cn/v2/as/genie-baas/oauth',
+    publishableKey: 'wbpk_MTkL7QbxcpKAMYbMN8i3BJ_n88pe9L5t32z393l3WwTOhQ0oliWH0jg'
+  };
+
+  var K_DEV = 'zhiche_dev_id_v1';
+  var K_DIRTY = 'zhiche_sync_dirty_v1';
+
+  var S = {
+    cloud: null, ready: false, sdkMissing: false,
+    session: null, user: null,
+    rev: 0, syncing: false, lastSync: 0, lastError: '',
+    pendingOtp: null, resetCtx: null,
+    inited: false, flushTimer: 0
+  };
+
+  var hooks = { get: function () { return {}; }, set: function () {} };
+
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function lsDel(k) { try { localStorage.removeItem(k); } catch (e) {} }
+
+  function deviceId() {
+    var v = lsGet(K_DEV);
+    if (!v) { v = 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); lsSet(K_DEV, v); }
+    return v;
+  }
+
+  function deviceLabel() {
+    var ua = navigator.userAgent || '';
+    var os = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad'
+      : /Android/.test(ua) ? 'Android' : /Macintosh/.test(ua) ? 'Mac'
+      : /Windows/.test(ua) ? 'Windows' : '设备';
+    var br = /MicroMessenger/i.test(ua) ? '微信' : /Edg\//.test(ua) ? 'Edge'
+      : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : '浏览器';
+    return os + ' · ' + br;
+  }
+
+  function errText(e) {
+    if (!e) return '未知错误';
+    if (typeof e === 'string') return e;
+    return e.message || e.errMsg || e.error_description || '操作失败';
+  }
+
+  /* ================= 初始化 / 会话 ================= */
+
+  function waitSDK(cb, n) {
+    n = n || 0;
+    var g = window.WorkBuddyCloud;
+    if (g && typeof g.createWorkBuddyCloud === 'function') { cb(true); return; }
+    if (n > 24) { cb(false); return; }
+    setTimeout(function () { waitSDK(cb, n + 1); }, 250);
+  }
+
+  function init(cb) {
+    if (S.inited) { if (cb) cb(); return; }
+    S.inited = true;
+    waitSDK(function (ok) {
+      if (ok) {
+        try { S.cloud = window.WorkBuddyCloud.createWorkBuddyCloud(CFG); S.ready = true; }
+        catch (e) { S.lastError = '云同步初始化失败：' + errText(e); }
+      } else {
+        S.sdkMissing = true;
+        S.lastError = '云同步组件未加载（离线打开或网络受限），本地刷题不受影响';
+      }
+      if (!S.ready) { if (cb) cb(); return; }
+      S.cloud.auth.onAuthStateChange(function (evt, sess) {
+        if (evt === 'SIGNED_OUT') { S.session = null; S.user = null; renderPanel(); }
+      });
+      S.cloud.auth.getSession().then(function (res) {
+        var sess = (res && res.data) || null;
+        S.session = sess && sess.user ? sess : (sess && sess.access_token ? sess : null);
+        S.user = S.session ? (S.session.user || null) : null;
+        if (S.session) { syncNow(); }
+        if (cb) cb();
+      }).catch(function (e) {
+        S.lastError = errText(e);
+        if (cb) cb();
+      });
+    });
+  }
+
+  function signInPassword(identifier, password) {
+    var id = String(identifier || '').trim();
+    if (!id || !password) return Promise.reject(new Error('请填写账号和密码'));
+    var cred = id.indexOf('@') > 0 ? { email: id, password: password } : { phone: id, password: password };
+    return S.cloud.auth.signInWithPassword(cred).then(function (res) {
+      if (res.error) throw res.error;
+      return afterSignIn(res.data);
+    });
+  }
+
+  function sendCode(identifier) {
+    var id = String(identifier || '').trim();
+    var isEmail = id.indexOf('@') > 0;
+    if (!isEmail && !/^1\d{10}$/.test(id)) return Promise.reject(new Error('请输入正确的邮箱或 11 位手机号'));
+    var arg = isEmail ? { email: id } : { phone: id };
+    return S.cloud.auth.sendOtp(arg).then(function (res) {
+      if (res.error) throw res.error;
+      S.pendingOtp = {
+        kind: isEmail ? 'email' : 'phone',
+        value: id,
+        verificationId: res.data.verificationId,
+        isExistingUser: !!res.data.isExistingUser,
+        at: Date.now()
+      };
+      return S.pendingOtp;
+    });
+  }
+
+  function verifyCode(code, newPassword) {
+    var p = S.pendingOtp;
+    if (!p) return Promise.reject(new Error('请先获取验证码'));
+    var arg = { verificationId: p.verificationId, isExistingUser: p.isExistingUser, token: String(code || '').trim() };
+    if (p.kind === 'email') arg.email = p.value; else arg.phone = p.value;
+    if (!p.isExistingUser && newPassword) arg.password = newPassword;
+    return S.cloud.auth.verifyOtp(arg).then(function (res) {
+      if (res.error) throw res.error;
+      S.pendingOtp = null;
+      return afterSignIn(res.data);
+    });
+  }
+
+  function startReset(email) {
+    return S.cloud.auth.resetPasswordForEmail(String(email || '').trim()).then(function (res) {
+      if (res.error) throw res.error;
+      S.resetCtx = res.data;
+      return true;
+    });
+  }
+
+  function finishReset(code, newPassword) {
+    if (!S.resetCtx) return Promise.reject(new Error('请先获取重置验证码'));
+    return S.resetCtx.updateUser({ nonce: String(code || '').trim(), password: newPassword }).then(function (res) {
+      if (res.error) throw res.error;
+      S.resetCtx = null;
+      return afterSignIn(res.data);
+    });
+  }
+
+  function changePassword(oldPwd, newPwd) {
+    return S.cloud.auth.resetPasswordForOld({ oldPassword: oldPwd, newPassword: newPwd }).then(function (res) {
+      if (res.error) throw res.error;
+      return true;
+    });
+  }
+
+  function signOut() {
+    if (!S.ready) return Promise.resolve(false);
+    return S.cloud.auth.signOut().then(function () {
+      S.session = null; S.user = null; S.rev = 0; S.lastSync = 0;
+      renderPanel();
+      return true;
+    }).catch(function (e) { S.lastError = errText(e); renderPanel(); return false; });
+  }
+
+  function afterSignIn(session) {
+    if (session && session.user) { S.session = session; S.user = session.user; }
+    else if (session && session.access_token) { S.session = session; S.user = session.user || null; }
+    renderPanel();
+    return syncNow().then(function () { return true; });
+  }
+
+  function isSignedIn() { return !!(S.session && S.user); }
+
+  function userLabel() {
+    var u = S.user || {};
+    var id = u.email || u.phone || '';
+    if (!id) return '已登录';
+    if (u.email) {
+      var parts = u.email.split('@');
+      var head = parts[0] || '';
+      var mask = head.length <= 2 ? head : head.slice(0, 2) + '***';
+      return mask + '@' + (parts[1] || '');
+    }
+    return id.replace(/^(\d{3})\d{4}(\d{4})$/, '$1****$2');
+  }
+
+  /* ================= 合并策略 ================= */
+
+  function num(v) { v = Number(v); return isFinite(v) ? v : 0; }
+  function laterDue(a, b) { a = a || ''; b = b || ''; return a > b ? a : b; }
+  function earlier(a, b) { if (!a) return b; if (!b) return a; return a < b ? a : b; }
+
+  function mergeCard(a, b) {
+    var out = {};
+    for (var k in a) if (Object.prototype.hasOwnProperty.call(a, k)) out[k] = a[k];
+    for (var j in b) if (Object.prototype.hasOwnProperty.call(b, j)) out[j] = b[j];
+    out.lv = Math.max(num(a.lv), num(b.lv));
+    out.streak = Math.max(num(a.streak), num(b.streak));
+    out.seen = Math.max(num(a.seen), num(b.seen));
+    out.right = Math.max(num(a.right), num(b.right));
+    out.wrong = Math.max(num(a.wrong), num(b.wrong));
+    out.fuzzy = Math.max(num(a.fuzzy), num(b.fuzzy));
+    out.due = laterDue(a.due, b.due);
+    out.born = earlier(a.born, b.born);
+    out.master = !!(a.master || b.master);
+    return out;
+  }
+
+  function mergeMapMax(a, b) {
+    var out = {};
+    var k;
+    a = a || {}; b = b || {};
+    for (k in a) if (Object.prototype.hasOwnProperty.call(a, k)) out[k] = a[k];
+    for (k in b) if (Object.prototype.hasOwnProperty.call(b, k)) {
+      out[k] = (k in out) ? Math.max(num(out[k]), num(b[k])) : b[k];
+    }
+    return out;
+  }
+
+  function mergeAns(a, b) {
+    var out = {};
+    a = a || {}; b = b || {};
+    var keys = {}, k;
+    for (k in a) keys[k] = 1;
+    for (k in b) keys[k] = 1;
+    for (k in keys) {
+      var x = a[k] || {}, y = b[k] || {};
+      var n = Math.max(num(x.n), num(y.n));
+      var ok = Math.max(num(x.ok), num(y.ok));
+      out[k] = { n: n, ok: Math.min(ok, n), sec: Math.max(num(x.sec), num(y.sec)) };
+    }
+    return out;
+  }
+
+  function mergeFixes(a, b) {
+    var out = [], seen = {}, i, f, key;
+    var arr = (a || []).concat(b || []);
+    for (i = 0; i < arr.length; i++) {
+      f = arr[i];
+      if (!f || typeof f !== 'object') continue;
+      key = [f.front || '', f.at || '', f.note || ''].join('\u0001');
+      if (seen[key]) continue;
+      seen[key] = 1;
+      out.push(f);
+    }
+    return out;
+  }
+
+  function merge(local, remote) {
+    local = local || {}; remote = remote || {};
+    var out = {};
+    var k;
+    for (k in remote) if (Object.prototype.hasOwnProperty.call(remote, k)) out[k] = remote[k];
+    for (k in local) if (Object.prototype.hasOwnProperty.call(local, k)) out[k] = local[k];
+
+    out.schema = Math.max(num(local.schema), num(remote.schema));
+    out.created = earlier(local.created, remote.created) || local.created || remote.created;
+
+    var lc = local.cards || {}, rc = remote.cards || {};
+    var cards = {}, id;
+    for (id in lc) if (Object.prototype.hasOwnProperty.call(lc, id)) cards[id] = lc[id];
+    for (id in rc) if (Object.prototype.hasOwnProperty.call(rc, id)) {
+      cards[id] = cards[id] ? mergeCard(cards[id], rc[id]) : rc[id];
+    }
+    out.cards = cards;
+
+    out.log = mergeMapMax(local.log, remote.log);
+    out.time = mergeMapMax(local.time, remote.time);
+    out.ans = mergeAns(local.ans, remote.ans);
+
+    var stars = {}, s1 = local.stars || {}, s2 = remote.stars || {};
+    for (k in s1) if (s1[k]) stars[k] = true;
+    for (k in s2) if (s2[k]) stars[k] = true;
+    out.stars = stars;
+
+    out.fixes = mergeFixes(local.fixes, remote.fixes);
+
+    var ls = local.settings || {}, rs = remote.settings || {};
+    out.settings = (num(rs._ts) > num(ls._ts)) ? rs : ls;
+    if (!out.settings || !out.settings.theme) {
+      out.settings = ls.theme ? ls : (rs.theme ? rs : ls || rs || {});
+    }
+    return out;
+  }
+
+  /* ================= 读写云端 ================= */
+
+  function pull() {
+    return S.cloud.database.from('user_progress').select('payload, rev, updated_at').limit(1).then(function (res) {
+      if (res.error) throw res.error;
+      var row = (res.data && res.data[0]) || null;
+      return row;
+    });
+  }
+
+  function push(state, depth) {
+    depth = depth || 0;
+    var ownerName = (S.user && (S.user.name || S.user.email || S.user.phone)) || null;
+    if (S.rev <= 0) {
+      return S.cloud.database.from('user_progress').insert({ payload: state, rev: 1, owner_name: ownerName }).select('rev').then(function (res) {
+        if (res.error) {
+          if (String(res.error.code) === '23505' && depth < 2) {
+            return pull().then(function (row) {
+              if (!row) throw res.error;
+              S.rev = num(row.rev) || 1;
+              var merged = merge(hooks.get(), row.payload || {});
+              hooks.set(merged);
+              return push(merged, depth + 1);
+            });
+          }
+          throw res.error;
+        }
+        S.rev = 1;
+        return true;
+      });
+    }
+    var expect = S.rev;
+    return S.cloud.database.from('user_progress')
+      .update({ payload: state, rev: expect + 1, owner_name: ownerName, updated_at: new Date().toISOString() })
+      .eq('rev', expect).select('rev').then(function (res) {
+        if (res.error) throw res.error;
+        if (!res.data || !res.data.length) {
+          if (depth >= 2) throw new Error('云端进度已被其他设备更新，请稍后重试');
+          return pull().then(function (row) {
+            if (!row) throw new Error('云端进度记录不存在');
+            S.rev = num(row.rev) || 1;
+            var merged = merge(hooks.get(), row.payload || {});
+            hooks.set(merged);
+            return push(merged, depth + 1);
+          });
+        }
+        S.rev = expect + 1;
+        return true;
+      });
+  }
+
+  function syncNow() {
+    if (!S.ready || !isSignedIn() || S.syncing) return Promise.resolve(false);
+    S.syncing = true;
+    S.lastError = '';
+    return pull().then(function (row) {
+      if (row) {
+        S.rev = num(row.rev) || 0;
+        var merged = merge(hooks.get(), row.payload || {});
+        hooks.set(merged, 'sync');
+      } else {
+        S.rev = 0;
+      }
+      return push(hooks.get(), 0);
+    }).then(function () {
+      S.lastSync = Date.now();
+      lsDel(K_DIRTY);
+      touchSession();
+      renderPanel();
+      return true;
+    }).catch(function (e) {
+      S.lastError = errText(e);
+      lsSet(K_DIRTY, '1');
+      renderPanel();
+      return false;
+    }).then(function (v) {
+      S.syncing = false;
+      return v;
+    });
+  }
+
+  function markDirty() {
+    lsSet(K_DIRTY, '1');
+    if (!isSignedIn()) return;
+    clearTimeout(S.flushTimer);
+    S.flushTimer = setTimeout(function () { flush(); }, 8000);
+  }
+
+  function flush() {
+    if (lsGet(K_DIRTY) === '1' && isSignedIn() && !S.syncing) return syncNow();
+    return Promise.resolve(false);
+  }
+
+  /* ================= 多端会话 ================= */
+
+  function touchSession() {
+    if (!S.ready || !isSignedIn()) return;
+    S.cloud.database.from('sync_sessions')
+      .upsert({
+        device_id: deviceId(),
+        label: deviceLabel(),
+        platform: navigator.platform || '',
+        last_seen: new Date().toISOString()
+      }, { onConflict: 'owner_id,device_id' })
+      .then(function () {}).catch(function () {});
+  }
+
+  function listSessions() {
+    if (!S.ready || !isSignedIn()) return Promise.resolve([]);
+    return S.cloud.database.from('sync_sessions')
+      .select('device_id, label, platform, last_seen, created_at')
+      .order('last_seen', { ascending: false })
+      .then(function (res) {
+        if (res.error) throw res.error;
+        return res.data || [];
+      });
+  }
+
+  function dropSession(id) {
+    if (!S.ready) return Promise.resolve(false);
+    return S.cloud.database.from('sync_sessions').delete().eq('device_id', id).select('device_id')
+      .then(function (res) { if (res.error) throw res.error; return true; });
+  }
+
+  /* ================= 面板渲染 ================= */
+
+  function fmtTime(ts) {
+    if (!ts) return '尚未同步';
+    var d = new Date(ts);
+    var p = function (n) { return n < 10 ? '0' + n : '' + n; };
+    return (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+
+  function renderPanel() {
+    var box = document.getElementById('acctBody');
+    if (!box) return;
+    var html = '';
+
+    if (!S.ready) {
+      html += '<p class="acctNote">' + (S.lastError || '云同步正在初始化…') + '</p>';
+      html += '<div class="acctRow"><button class="acctBtn" data-acct="retry">重试</button></div>';
+      box.innerHTML = html;
+      return;
+    }
+
+    if (!isSignedIn()) {
+      html += '<p class="acctNote">登录后，这台设备的进度会同步到云端；在另一台设备登录同一账号即可接着刷。</p>';
+      html += '<div class="acctRow">';
+      html += '<button class="acctBtn primary" data-acct="login">登录 / 注册</button>';
+      box.innerHTML = html;
+      return;
+    }
+
+    html += '<div class="acctWho"><b>' + userLabel() + '</b>';
+    html += '<small>' + (S.syncing ? '同步中…' : ('上次同步 ' + fmtTime(S.lastSync))) + '</small></div>';
+    if (S.lastError) html += '<p class="acctErr">' + S.lastError + '</p>';
+    if (lsGet(K_DIRTY) === '1') html += '<p class="acctNote">有本地改动待上传，联网后会自动同步。</p>';
+    html += '<div class="acctRow">';
+    html += '<button class="acctBtn primary" data-acct="sync">立即同步</button>';
+    html += '<button class="acctBtn" data-acct="devices">设备管理</button>';
+    html += '<button class="acctBtn" data-acct="pwd">改密码</button>';
+    html += '<button class="acctBtn ghost" data-acct="logout">退出登录</button>';
+    html += '</div>';
+    html += '<div id="acctDevices" class="acctDevices"></div>';
+    box.innerHTML = html;
+  }
+
+  function showDevices() {
+    var box = document.getElementById('acctDevices');
+    if (!box) return;
+    box.innerHTML = '<p class="acctNote">读取中…</p>';
+    listSessions().then(function (rows) {
+      if (!rows.length) { box.innerHTML = '<p class="acctNote">暂无设备记录</p>'; return; }
+      var me = deviceId();
+      var h = '<p class="acctSub">已登录设备（' + rows.length + '）</p>';
+      rows.forEach(function (r) {
+        var cur = r.device_id === me;
+        h += '<div class="acctDev' + (cur ? ' cur' : '') + '">' +
+          '<div><b>' + (r.label || '未知设备') + (cur ? '（当前）' : '') + '</b>' +
+          '<small>' + fmtTime(new Date(r.last_seen).getTime()) + ' 活跃</small></div>';
+        if (!cur) h += '<button class="acctMini" data-acct="drop" data-id="' + r.device_id + '">移除记录</button>';
+        h += '</div>';
+      });
+      h += '<p class="acctNote">移除记录只删掉列表里的这台设备；要强制其下线，请在该设备上「退出登录」。</p>';
+      box.innerHTML = h;
+    }).catch(function (e) {
+      box.innerHTML = '<p class="acctErr">' + errText(e) + '</p>';
+    });
+  }
+
+  /* ================= 事件委托 ================= */
+
+  function bindPanel() {
+    document.addEventListener('click', function (e) {
+      var el = e.target;
+      while (el && el !== document && !(el.getAttribute && el.getAttribute('data-acct'))) el = el.parentNode;
+      if (!el || el === document) return;
+      var act = el.getAttribute('data-acct');
+      if (act === 'retry') { S.inited = false; S.ready = false; S.sdkMissing = false; init(renderPanel); }
+      else if (act === 'login') openAuth();
+      else if (act === 'sync') { syncNow().then(function (ok) { App.toast(ok ? '同步完成' : ('同步失败：' + (S.lastError || '网络问题'))); }); }
+      else if (act === 'devices') showDevices();
+      else if (act === 'pwd') openAuth('chg');
+      else if (act === 'logout') {
+        if (!confirm('退出登录？本机进度会保留，可继续离线使用。')) return;
+        signOut().then(function () { App.toast('已退出登录'); });
+      } else if (act === 'drop') {
+        dropSession(el.getAttribute('data-id')).then(function () { showDevices(); App.toast('已移除该设备记录'); })
+          .catch(function (err) { App.toast('移除失败：' + errText(err)); });
+      }
+    });
+  }
+
+  /* ================= 登录弹层 ================= */
+
+  var AUTH = null;
+
+  function openAuth(mode) {
+    var ov = document.getElementById('authModal');
+    if (!ov) return;
+    ov.classList.add('on');
+    setAuthTab(mode === 'pwd' ? 'pwd' : (mode === 'reset' ? 'reset' : (mode === 'chg' ? 'chg' : 'otp')));
+    var st = document.getElementById('authMsg');
+    if (st) { st.textContent = ''; st.className = 'authMsg'; }
+  }
+
+  function closeAuth() {
+    var ov = document.getElementById('authModal');
+    if (ov) ov.classList.remove('on');
+  }
+
+  function setAuthTab(tab) {
+    AUTH = AUTH || {};
+    AUTH.tab = tab;
+    var tabs = document.querySelectorAll('#authTabs button');
+    for (var i = 0; i < tabs.length; i++) {
+      tabs[i].classList.toggle('on', tabs[i].getAttribute('data-tab') === tab);
+    }
+    var panes = { pwd: 'authPwd', otp: 'authOtp', reset: 'authReset', chg: 'authChg' };
+    for (var k in panes) {
+      var el = document.getElementById(panes[k]);
+      if (el) el.style.display = (k === tab) ? '' : 'none';
+    }
+  }
+
+  function authMsg(text, ok) {
+    var el = document.getElementById('authMsg');
+    if (!el) return;
+    el.textContent = text || '';
+    el.className = 'authMsg' + (text ? (ok ? ' ok' : ' bad') : '');
+  }
+
+  function busy(btn, on, label) {
+    if (!btn) return;
+    btn.disabled = !!on;
+    if (on) { btn.dataset.t = btn.textContent; btn.textContent = label || '处理中…'; }
+    else if (btn.dataset.t) { btn.textContent = btn.dataset.t; }
+  }
+
+  function codeCountdown(btn, sec) {
+    if (!btn) return;
+    btn.disabled = true;
+    var left = sec || 60;
+    var raw = '获取验证码';
+    btn.textContent = left + 's';
+    var t = setInterval(function () {
+      left--;
+      if (left <= 0) { clearInterval(t); btn.disabled = false; btn.textContent = raw; return; }
+      btn.textContent = left + 's';
+    }, 1000);
+  }
+
+  function bindAuth() {
+    var ov = document.getElementById('authModal');
+    if (!ov) return;
+
+    var tabs = document.querySelectorAll('#authTabs button');
+    for (var i = 0; i < tabs.length; i++) {
+      tabs[i].addEventListener('click', function (e) { setAuthTab(e.currentTarget.getAttribute('data-tab')); });
+    }
+
+    var closeBtn = document.getElementById('authClose');
+    if (closeBtn) closeBtn.addEventListener('click', closeAuth);
+    ov.addEventListener('click', function (e) { if (e.target === ov) closeAuth(); });
+
+    var pwdBtn = document.getElementById('authPwdGo');
+    if (pwdBtn) pwdBtn.addEventListener('click', function () {
+      var id = (document.getElementById('authPwdId') || {}).value || '';
+      var pw = (document.getElementById('authPwdPw') || {}).value || '';
+      busy(pwdBtn, true, '登录中…');
+      signInPassword(id, pw).then(function () {
+        closeAuth(); App.toast('登录成功，正在同步进度');
+      }).catch(function (e) {
+        authMsg(/password|credential|invalid/i.test(errText(e)) ? '账号或密码不正确' : errText(e));
+      }).then(function () { busy(pwdBtn, false); });
+    });
+
+    var sendBtn = document.getElementById('authOtpSend');
+    if (sendBtn) sendBtn.addEventListener('click', function () {
+      var id = (document.getElementById('authOtpId') || {}).value || '';
+      busy(sendBtn, true, '发送中…');
+      sendCode(id).then(function () {
+        busy(sendBtn, false);
+        authMsg('验证码已发送，请查收（未注册的账号验证后将自动创建）', true);
+        codeCountdown(sendBtn, 60);
+      }).catch(function (e) {
+        busy(sendBtn, false);
+        authMsg(errText(e));
+      });
+    });
+
+    var otpBtn = document.getElementById('authOtpGo');
+    if (otpBtn) otpBtn.addEventListener('click', function () {
+      var code = (document.getElementById('authOtpCode') || {}).value || '';
+      var pw = (document.getElementById('authOtpPw') || {}).value || '';
+      busy(otpBtn, true, '验证中…');
+      verifyCode(code, pw).then(function () {
+        closeAuth(); App.toast('登录成功，正在同步进度');
+      }).catch(function (e) {
+        authMsg(/expired|invalid|token/i.test(errText(e)) ? '验证码不正确或已过期' : errText(e));
+      }).then(function () { busy(otpBtn, false); });
+    });
+
+    var resetSend = document.getElementById('authResetSend');
+    if (resetSend) resetSend.addEventListener('click', function () {
+      var addr = (document.getElementById('authResetEmail') || {}).value || '';
+      busy(resetSend, true, '发送中…');
+      startReset(addr).then(function () {
+        busy(resetSend, false);
+        authMsg('重置验证码已发送到该邮箱', true);
+        codeCountdown(resetSend, 60);
+      }).catch(function (e) { busy(resetSend, false); authMsg(errText(e)); });
+    });
+
+    var resetGo = document.getElementById('authResetGo');
+    if (resetGo) resetGo.addEventListener('click', function () {
+      var code = (document.getElementById('authResetCode') || {}).value || '';
+      var pw = (document.getElementById('authResetPw') || {}).value || '';
+      if (!pw || pw.length < 6) { authMsg('新密码至少 6 位'); return; }
+      busy(resetGo, true, '提交中…');
+      finishReset(code, pw).then(function () {
+        closeAuth(); App.toast('密码已重置，已自动登录');
+      }).catch(function (e) {
+        authMsg(/expired|invalid|nonce|token/i.test(errText(e)) ? '验证码不正确或已过期' : errText(e));
+      }).then(function () { busy(resetGo, false); });
+    });
+
+    var chgGo = document.getElementById('authChgGo');
+    if (chgGo) chgGo.addEventListener('click', function () {
+      var o = (document.getElementById('authChgOld') || {}).value || '';
+      var n = (document.getElementById('authChgNew') || {}).value || '';
+      if (!n || n.length < 6) { authMsg('新密码至少 6 位'); return; }
+      busy(chgGo, true, '提交中…');
+      changePassword(o, n).then(function () {
+        closeAuth(); App.toast('密码已修改');
+      }).catch(function (e) { authMsg(errText(e)); }).then(function () { busy(chgGo, false); });
+    });
+  }
+
+  /* ================= 对外 API ================= */
+
+  function boot() {
+    bindPanel();
+    bindAuth();
+    init(renderPanel);
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'hidden') flush();
+    });
+    setInterval(function () { flush(); }, 5 * 60 * 1000);
+  }
+
+  window.MTSync = {
+    boot: boot,
+    init: init,
+    bind: function (h) { if (h && typeof h.get === 'function' && typeof h.set === 'function') hooks = h; },
+    merge: merge,
+    syncNow: syncNow,
+    markDirty: markDirty,
+    flush: flush,
+    signOut: signOut,
+    isSignedIn: isSignedIn,
+    openAuth: openAuth,
+    closeAuth: closeAuth,
+    setAuthTab: setAuthTab,
+    listSessions: listSessions,
+    _state: S,
+    _deviceId: deviceId
+  };
+})();

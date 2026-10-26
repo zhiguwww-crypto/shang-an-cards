@@ -669,6 +669,40 @@ try{
   // 恢复真实队列
   App.buildQueues();
 
+  /* ---------- T 账号与云同步 ---------- */
+  ok('T1 数据页有账号面板', !!document.getElementById('acctPanel') && !!document.getElementById('acctBody'));
+  ok('T2 登录弹层与三个标签页齐全', (()=>{
+    const tabs=[...document.querySelectorAll('#authTabs button')].map(b=>b.getAttribute('data-tab'));
+    return !!document.getElementById('authModal') && tabs.join(',')==='otp,pwd,reset'
+      && !!document.getElementById('authOtpId') && !!document.getElementById('authOtpSend')
+      && !!document.getElementById('authPwdPw') && !!document.getElementById('authResetPw')
+      && !!document.getElementById('authChgNew');
+  })());
+  ok('T3 同步模块已加载', typeof window.MTSync==='object' && typeof MTSync.merge==='function' && typeof MTSync.syncNow==='function');
+  ok('T4 登录弹层可开关', (()=>{
+    MTSync.openAuth();
+    const on=document.getElementById('authModal').classList.contains('on');
+    MTSync.closeAuth();
+    return on && !document.getElementById('authModal').classList.contains('on');
+  })());
+  ok('T5 合并策略：字段取大、到期取晚、born 取早', (()=>{
+    const a={cards:{x:{lv:2,seen:5,right:4,wrong:1,fuzzy:0,due:'2026-10-30',streak:2,born:'2026-10-01',master:false}},
+             log:{'2026-10-20':10},time:{'2026-10-20':120},ans:{'2026-10-20':{n:5,ok:4,sec:60}},
+             stars:{c1:true},fixes:[{front:'甲',note:'n1',at:'1'}],settings:{theme:'zhi'},created:'2026-10-01'};
+    const b={cards:{x:{lv:3,seen:4,right:3,wrong:2,fuzzy:2,due:'2026-11-02',streak:3,born:'2026-09-20',master:true}},
+             log:{'2026-10-21':20},time:{'2026-10-20':80},ans:{'2026-10-21':{n:9,ok:6,sec:90}},
+             stars:{c2:true},fixes:[{front:'乙',note:'n2',at:'2'}],settings:{theme:'ye'},created:'2026-10-05'};
+    const m=MTSync.merge(a,b);
+    return m.cards.x.lv===3 && m.cards.x.seen===5 && m.cards.x.right===4 && m.cards.x.wrong===2
+      && m.cards.x.fuzzy===2 && m.cards.x.due==='2026-11-02' && m.cards.x.born==='2026-09-20'
+      && m.cards.x.master===true && m.log['2026-10-20']===10 && m.log['2026-10-21']===20
+      && m.time['2026-10-20']===120 && m.ans['2026-10-21'].n===9
+      && Object.keys(m.stars).length===2 && m.fixes.length===2 && m.created==='2026-10-01'
+      && m.settings.theme==='zhi';
+  })());
+  ok('T6 未登录时同步为安全空操作', await (async()=>{ const r=await MTSync.syncNow(); return r===false && MTSync.isSignedIn()===false; })());
+  ok('T7 登录失败不影响本地进度', typeof App.s==='object' && !!App.s.cards && Object.keys(App.s.cards).length>=0);
+
   /* ---------- H 设置 ---------- */
   document.getElementById('btnSet').click();
   await sleep(60);

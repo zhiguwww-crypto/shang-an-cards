@@ -14,6 +14,10 @@ ZIP = os.path.join(ROOT, 'shangan-minitool.zip')
 
 html = open(SRC, encoding='utf-8').read()
 
+# ---------- 0. 剔除云同步（容器不联网：登录/同步模块整体移除） ----------
+html, n_sync = re.subn(r'<!--MT-SYNC-UI-START-->[\s\S]*?<!--MT-SYNC-UI-END-->', '', html)
+print(f'  剔除云同步区块: {n_sync} 个')
+
 # ---------- 1. 提取内联 <script> 块 ----------
 blocks = re.findall(r'<script>(.*?)</script>', html, re.S)
 assert len(blocks) == 3, f'预期 3 个内联脚本，实际 {len(blocks)}'

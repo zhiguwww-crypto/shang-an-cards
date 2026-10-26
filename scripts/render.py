@@ -30,9 +30,13 @@ quiz_path = f"{ROOT}/data/quiz.json"
 quiz = json.load(open(quiz_path, encoding="utf-8")) if os.path.exists(quiz_path) else {}
 quizjson = json.dumps(quiz, ensure_ascii=False, separators=(",", ":"))
 
+sync_path = f"{ROOT}/templates/sync.js"
+sync_js = open(sync_path, encoding="utf-8").read() if os.path.exists(sync_path) else ""
+
 html = (tpl.replace("__CARDS__", payload)
            .replace("__CATS__", catjson)
-           .replace("__QUIZ__", quizjson))
+           .replace("__QUIZ__", quizjson)
+           .replace("__SYNC__", sync_js))
 out = f"{ROOT}/index.html"
 open(out, "w", encoding="utf-8").write(html)
 print("生成", out, f"{os.path.getsize(out)/1024/1024:.2f} MB", "卡片", len(slim),

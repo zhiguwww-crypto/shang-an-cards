@@ -75,6 +75,20 @@ const App={
   save(){
     try{ this.s.schema=SCHEMA; localStorage.setItem(KEY,JSON.stringify(this.s)); }
     catch(e){ this.toast('浏览器禁用了本地存储，进度无法保存'); }
+    if(window.MTSync)window.MTSync.markDirty();     // 登录状态下触发增量同步（未登录为空操作）
+  },
+
+  /* 云端合并结果落地：整体替换本地状态并重绘（不主动再触发上传） */
+  applyRemote(st){
+    if(!st||typeof st!=='object')return;
+    this.s=st;
+    try{ this.s.schema=SCHEMA; localStorage.setItem(KEY,JSON.stringify(this.s)); }catch(e){}
+    this.applyTheme(this.s.settings&&this.s.settings.theme||'auto');
+    this.buildQueues();
+    this.buildCatChips&&this.buildCatChips();
+    this.paintGoal&&this.paintGoal();
+    if(this.s.scope!==undefined){} 
+    this.render();
   },
 
   today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')},
@@ -2155,3 +2169,12 @@ document.addEventListener('click',function(e){
   fn.apply(App,args);
 });
 App.boot();
+
+/* 云同步引导（仅网页版存在 MTSync；离线包会被构建剔除） */
+if(window.MTSync){
+  window.MTSync.bind({
+    get:function(){ return App.s; },
+    set:function(st){ App.applyRemote(st); }
+  });
+  window.MTSync.boot();
+}
