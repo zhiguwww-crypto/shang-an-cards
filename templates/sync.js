@@ -48,6 +48,12 @@
     return os + ' · ' + br;
   }
 
+  function esc(str) {
+    return String(str == null ? '' : str).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
   function errText(e) {
     if (!e) return '未知错误';
     if (typeof e === 'string') return e;
@@ -612,9 +618,9 @@
       return;
     }
 
-    html += '<div class="acctWho"><b>' + userLabel() + '</b>';
+    html += '<div class="acctWho"><b>' + esc(userLabel()) + '</b>';
     html += '<small>' + (S.syncing ? '同步中…' : ('上次同步 ' + fmtTime(S.lastSync))) + '</small></div>';
-    if (S.lastError) html += '<p class="acctErr">' + S.lastError + '</p>';
+    if (S.lastError) html += '<p class="acctErr">' + esc(S.lastError) + '</p>';
     if (lsGet(K_DIRTY) === '1') html += '<p class="acctNote">有本地改动待上传，联网后会自动同步。</p>';
     html += '<div class="acctRow">';
     html += '<button class="acctBtn primary" data-acct="sync">立即同步</button>';
@@ -638,15 +644,15 @@
       rows.forEach(function (r) {
         var cur = r.device_id === me;
         h += '<div class="acctDev' + (cur ? ' cur' : '') + '">' +
-          '<div><b>' + (r.label || '未知设备') + (cur ? '（当前）' : '') + '</b>' +
+          '<div><b>' + esc(r.label || '未知设备') + (cur ? '（当前）' : '') + '</b>' +
           '<small>' + fmtTime(new Date(r.last_seen).getTime()) + ' 活跃</small></div>';
-        if (!cur) h += '<button class="acctMini" data-acct="drop" data-id="' + r.device_id + '">移除记录</button>';
+        if (!cur) h += '<button class="acctMini" data-acct="drop" data-id="' + esc(r.device_id) + '">移除记录</button>';
         h += '</div>';
       });
       h += '<p class="acctNote">移除记录只删掉列表里的这台设备；要强制其下线，请在该设备上「退出登录」。</p>';
       box.innerHTML = h;
     }).catch(function (e) {
-      box.innerHTML = '<p class="acctErr">' + errText(e) + '</p>';
+      box.innerHTML = '<p class="acctErr">' + esc(errText(e)) + '</p>';
     });
   }
 
@@ -834,6 +840,15 @@
     bindEntry();
     if (!entryMode()) openEntry(false); else updateGuestTag();
     init(renderPanel);
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape' && e.keyCode !== 27) return;
+      var doc = document.getElementById('docModal');
+      if (doc && doc.classList.contains('on')) { closeDoc(); return; }
+      var auth = document.getElementById('authModal');
+      if (auth && auth.classList.contains('on')) { closeAuth(); return; }
+      var entry = document.getElementById('entryModal');
+      if (entry && entry.classList.contains('on')) { chooseGuest(true); return; }
+    });
     document.addEventListener('visibilitychange', function () {
       if (document.visibilityState === 'hidden') flush();
     });

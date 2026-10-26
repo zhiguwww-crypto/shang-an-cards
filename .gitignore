@@ -19,3 +19,6 @@ docs/shots/frames/
 # Python
 __pycache__/
 *.pyc
+
+# 小工具构建中间产物（交付用 zip 保留在根目录）
+dist-minitool/

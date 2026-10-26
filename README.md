@@ -7,17 +7,18 @@
 常识判断拼的不是天赋，是**脸熟**。2555 张卡、艾宾浩斯复习曲线、挖空自测、错题本，
 全部装进一个 1 MB 的 HTML 文件——**零安装、零依赖、零网络请求**。
 
+![版本](https://img.shields.io/badge/版本-v1.5.0-2C3E50?style=flat-square)
 ![卡片](https://img.shields.io/badge/卡片-2555%20张-C0392B?style=flat-square)
 ![板块](https://img.shields.io/badge/板块-16%20个-8E6C3A?style=flat-square)
 ![挖空题](https://img.shields.io/badge/挖空题-1422%20道-5B7B5A?style=flat-square)
-![自检](https://img.shields.io/badge/自检-165%20项全绿-3A6B8C?style=flat-square)
+![自检](https://img.shields.io/badge/自检-188%20项全绿-3A6B8C?style=flat-square)
 ![体积](https://img.shields.io/badge/单文件-约%201%20MB-6B5B95?style=flat-square)
 ![隐私](https://img.shields.io/badge/隐私-可选登录·可离线-444444?style=flat-square)
 ![同步](https://img.shields.io/badge/多端同步-登录后自动接续-3F6B4A?style=flat-square)
 
 ### 👉 [点击这里直接打开应用](https://zhiche-cards.app.workbuddy.host/?sharecode=IQ2GQJXJX4)
 
-**线上版**：手机电脑都能用，微信里也能直接打开，进度存在本机浏览器。
+**线上版**：手机电脑都能用，微信里也能直接打开。默认进度存本机；登录账号后自动同步，换设备接着刷。
 **本地版**：双击 `index.html` 即可，见下方[快速开始](#-快速开始)。
 
 > 🍀 常识不用一天啃完。每天刷 60 题，**一个多月**就能和 2555 张卡全部见上一面——
@@ -233,8 +234,11 @@ open index.html          # macOS
 .
 ├── index.html            # 构建产物：单文件应用（含全部卡片与挖空题）
 ├── build.sh              # 一键重建（切卡 → 合并 → 挖空 → 渲染 → 同步 dist）
-├── test.sh               # 一键自检（165 项断言 + 无头 Chrome）
-├── templates/app.html    # 应用模板（HTML + CSS + JS）
+├── test.sh               # 一键自检（188 项断言 + 无头 Chrome）
+├── CHANGELOG.md          # 每次更新做了什么（新增 / 优化 / 修复 / 工程）
+├── templates/
+│   ├── app.html          # 应用模板（HTML + CSS + JS）
+│   └── sync.js           # 账号登录 + 云同步模块（离线包构建时剔除）
 ├── data/
 │   ├── cards.json        # 卡片主库（构建产物，同时在版本库中充当输入）
 │   ├── quiz.json         # 挖空题（存偏移量，前端按需切片还原）
@@ -247,11 +251,13 @@ open index.html          # macOS
     ├── build_supplement.py # 补充卡片
     ├── build_all.py        # 合并 → cards.json + 导出 CSV / Markdown
     ├── gen_quiz.py         # 生成挖空题（分级兜底，覆盖率 100%）
-    ├── render.py           # 注入数据 → index.html
+    ├── render.py           # 注入数据 + 同步模块 → index.html
+    ├── build_minitool.py   # 生成小红书小工具离线包（CSP / Chrome 61 适配）
     └── selftest.js         # 生成自检页面
 ```
 
-`raw/`（教材原文）、`dist/`（发布副本）、`outputs/`（导出文件）均不纳入版本库。
+`raw/`（教材原文）、`dist/` 与 `dist-minitool/`（构建产物）、`outputs/`（导出文件）均不纳入版本库；
+交付用的离线包 `shangan-minitool.zip` 保留在仓库根目录，方便直接下载上传。
 
 ## 🛠 构建与自检
 
@@ -264,6 +270,20 @@ open index.html          # macOS
 ```
 
 > 改卡片内容请改 `data/overrides.json`（按 `front` 匹配），不要直接改 `cards.json`——重新构建会被覆盖。
+
+## 📋 更新说明
+
+每次发版在 [`CHANGELOG.md`](CHANGELOG.md) 记录，格式固定：
+
+```
+## vX.Y.Z — YYYY-MM-DD
+### 新增功能   （做了什么、解决什么问题）
+### 体验优化   （改了什么、能感知到什么变化）
+### 修复       （修了哪个问题、触发条件）
+### 兼容 / 工程（构建、自检、包体、依赖）
+```
+
+约定：**只写用户能验证的内容**，不写「优化了代码结构」这类无法验证的描述；数字（自检项数、包体大小）必须与仓库现状一致。当前版本见顶部徽章。
 
 ## 🔒 隐私
 

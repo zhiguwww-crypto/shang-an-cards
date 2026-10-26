@@ -252,6 +252,7 @@ main{flex:1;min-height:0;position:relative}
   background:transparent;color:var(--ink-2);font-size:10px;letter-spacing:.6px;white-space:nowrap;
   -webkit-appearance:none;appearance:none}
 .guestTag[hidden]{display:none}
+@media(max-width:520px){.guestTag{padding:6px 10px;font-size:10.5px}}
 
 /* 首次进入：体验 / 登录 选择 */
 .entryModal{position:fixed;top:0;right:0;bottom:0;left:0;z-index:975;background:rgba(28,25,23,.55);
@@ -1461,7 +1462,7 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
 </main>
 
 <!--MT-SYNC-UI-START-->
-<div class="authModal" id="authModal">
+<div class="authModal" id="authModal" role="dialog" aria-modal="true" aria-label="登录或注册">
   <div class="authCard">
     <button class="authX" id="authClose" aria-label="关闭">×</button>
     <h2>登录 / 注册</h2>
@@ -1509,7 +1510,7 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
   </div>
 </div>
 
-<div class="entryModal" id="entryModal">
+<div class="entryModal" id="entryModal" role="dialog" aria-modal="true" aria-label="选择开始方式">
   <div class="entryCard">
     <h2>先选一个开始方式</h2>
     <p class="entrySub">两种方式功能完全一样，区别只在进度存在哪里、能不能跨设备。</p>
@@ -1528,7 +1529,7 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
   </div>
 </div>
 
-<div class="docModal" id="docModal">
+<div class="docModal" id="docModal" role="dialog" aria-modal="true" aria-label="隐私政策与用户协议">
   <div class="docCard">
     <button class="docX" id="docClose" aria-label="关闭">×</button>
     <div class="docBody" id="docBody"></div>
