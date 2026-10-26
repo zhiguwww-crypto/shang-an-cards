@@ -246,6 +246,25 @@ main{flex:1;min-height:0;position:relative}
 .acctMini{padding:5px 9px;border-radius:8px;border:1px solid var(--line-2);background:transparent;
   color:var(--ink-2);font-size:10.5px;-webkit-appearance:none;appearance:none}
 
+.acctLegal{margin:10px 0 0;font-size:10.5px;color:var(--ink-3)}
+.acctLegal button{border:none;background:transparent;padding:0;color:var(--ink-2);font-size:10.5px;
+  text-decoration:underline;-webkit-appearance:none;appearance:none}
+.acctLegal i{font-style:normal;margin:0 6px;color:var(--ink-3)}
+
+/* 协议阅读弹层 */
+.docModal{position:fixed;top:0;right:0;bottom:0;left:0;z-index:980;background:rgba(28,25,23,.5);
+  display:none;align-items:center;justify-content:center;padding:16px}
+.docModal.on{display:flex}
+.docCard{position:relative;background:var(--card);border-radius:18px;width:100%;max-width:560px;
+  max-height:86vh;display:flex;flex-direction:column;overflow:hidden}
+.docX{position:absolute;top:6px;right:8px;width:34px;height:34px;border:none;background:transparent;
+  font-size:20px;line-height:1;color:var(--ink-3);z-index:2}
+.docBody{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:20px 18px 22px}
+.docBody h3{font-family:var(--serif);font-size:17px;letter-spacing:1.5px;margin-bottom:4px;color:var(--ink)}
+.docBody h4{font-size:12.5px;margin:14px 0 5px;color:var(--ink);letter-spacing:.4px}
+.docBody p{font-size:12px;line-height:1.85;color:var(--ink-2)}
+.docBody .docUpd{font-size:10.5px;color:var(--ink-3);margin-bottom:6px}
+
 /* 登录弹层 */
 .authModal{position:fixed;top:0;right:0;bottom:0;left:0;z-index:970;background:rgba(28,25,23,.5);
   display:none;align-items:center;justify-content:center;padding:18px}
@@ -1303,6 +1322,9 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
       <div class="panel acct" id="acctPanel">
         <h3>账号与云同步<em>换设备登录即可接着刷</em></h3>
         <div id="acctBody"><p class="acctNote">云同步正在初始化…</p></div>
+        <p class="acctLegal">
+          <button data-doc="privacy">隐私政策</button><i>·</i><button data-doc="terms">用户协议</button>
+        </p>
       </div>
       <!--MT-SYNC-UI-END-->
       <div class="kpis">
@@ -1417,18 +1439,18 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
       <button data-tab="reset">找回密码</button>
     </div>
     <div class="authPane" id="authOtp">
-      <label>邮箱或手机号</label>
-      <input id="authOtpId" placeholder="you@example.com 或 11 位手机号" autocomplete="username">
+      <label>邮箱</label>
+      <input id="authOtpId" type="email" placeholder="you@example.com" autocomplete="email" inputmode="email">
       <div class="authInline">
         <input id="authOtpCode" placeholder="验证码" inputmode="numeric" autocomplete="one-time-code">
         <button class="authCode" id="authOtpSend">获取验证码</button>
       </div>
-      <input id="authOtpPw" type="password" placeholder="设置密码（可选，仅新账号）" autocomplete="new-password">
+      <input id="authOtpPw" type="password" placeholder="设置密码（可选，仅新邮箱）" autocomplete="new-password">
       <button class="authGo" id="authOtpGo">登录 / 注册</button>
     </div>
     <div class="authPane" id="authPwd" style="display:none">
-      <label>邮箱或手机号</label>
-      <input id="authPwdId" autocomplete="username">
+      <label>邮箱</label>
+      <input id="authPwdId" type="email" placeholder="you@example.com" autocomplete="email" inputmode="email">
       <label>密码</label>
       <input id="authPwdPw" type="password" autocomplete="current-password">
       <button class="authGo" id="authPwdGo">登录</button>
@@ -1452,6 +1474,13 @@ html[data-theme="ye"] .qxopt.wrong{background:rgba(99,164,224,.12)}
     </div>
     <p class="authMsg" id="authMsg"></p>
     <p class="authFoot">进度只与你的账号绑定。不登录也能照常刷题，登录后自动同步到云端。</p>
+  </div>
+</div>
+
+<div class="docModal" id="docModal">
+  <div class="docCard">
+    <button class="docX" id="docClose" aria-label="关闭">×</button>
+    <div class="docBody" id="docBody"></div>
   </div>
 </div>
 <!--MT-SYNC-UI-END-->

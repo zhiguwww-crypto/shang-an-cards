@@ -91,24 +91,24 @@
 
   function signInPassword(identifier, password) {
     var id = String(identifier || '').trim();
-    if (!id || !password) return Promise.reject(new Error('请填写账号和密码'));
-    var cred = id.indexOf('@') > 0 ? { email: id, password: password } : { phone: id, password: password };
-    return S.cloud.auth.signInWithPassword(cred).then(function (res) {
+    if (!id || !password) return Promise.reject(new Error('请填写邮箱和密码'));
+    if (!EMAIL_RE.test(id)) return Promise.reject(new Error('请输入正确的邮箱地址'));
+    return S.cloud.auth.signInWithPassword({ email: id, password: password }).then(function (res) {
       if (res.error) throw res.error;
       return afterSignIn(res.data);
     });
   }
 
-  function sendCode(identifier) {
-    var id = String(identifier || '').trim();
-    var isEmail = id.indexOf('@') > 0;
-    if (!isEmail && !/^1\d{10}$/.test(id)) return Promise.reject(new Error('请输入正确的邮箱或 11 位手机号'));
-    var arg = isEmail ? { email: id } : { phone: id };
-    return S.cloud.auth.sendOtp(arg).then(function (res) {
+  var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  function sendCode(email) {
+    var addr = String(email || '').trim();
+    if (!EMAIL_RE.test(addr)) return Promise.reject(new Error('请输入正确的邮箱地址'));
+    return S.cloud.auth.sendOtp({ email: addr }).then(function (res) {
       if (res.error) throw res.error;
       S.pendingOtp = {
-        kind: isEmail ? 'email' : 'phone',
-        value: id,
+        kind: 'email',
+        value: addr,
         verificationId: res.data.verificationId,
         isExistingUser: !!res.data.isExistingUser,
         at: Date.now()
@@ -120,8 +120,7 @@
   function verifyCode(code, newPassword) {
     var p = S.pendingOtp;
     if (!p) return Promise.reject(new Error('请先获取验证码'));
-    var arg = { verificationId: p.verificationId, isExistingUser: p.isExistingUser, token: String(code || '').trim() };
-    if (p.kind === 'email') arg.email = p.value; else arg.phone = p.value;
+    var arg = { email: p.value, verificationId: p.verificationId, isExistingUser: p.isExistingUser, token: String(code || '').trim() };
     if (!p.isExistingUser && newPassword) arg.password = newPassword;
     return S.cloud.auth.verifyOtp(arg).then(function (res) {
       if (res.error) throw res.error;
@@ -131,7 +130,9 @@
   }
 
   function startReset(email) {
-    return S.cloud.auth.resetPasswordForEmail(String(email || '').trim()).then(function (res) {
+    var addr = String(email || '').trim();
+    if (!EMAIL_RE.test(addr)) return Promise.reject(new Error('请输入正确的邮箱地址'));
+    return S.cloud.auth.resetPasswordForEmail(addr).then(function (res) {
       if (res.error) throw res.error;
       S.resetCtx = res.data;
       return true;
@@ -174,15 +175,11 @@
 
   function userLabel() {
     var u = S.user || {};
-    var id = u.email || u.phone || '';
-    if (!id) return '已登录';
-    if (u.email) {
-      var parts = u.email.split('@');
-      var head = parts[0] || '';
-      var mask = head.length <= 2 ? head : head.slice(0, 2) + '***';
-      return mask + '@' + (parts[1] || '');
-    }
-    return id.replace(/^(\d{3})\d{4}(\d{4})$/, '$1****$2');
+    if (!u.email) return '已登录';
+    var parts = u.email.split('@');
+    var head = parts[0] || '';
+    var mask = head.length <= 2 ? head : head.slice(0, 2) + '***';
+    return mask + '@' + (parts[1] || '');
   }
 
   /* ================= 合并策略 ================= */
@@ -296,7 +293,7 @@
 
   function push(state, depth) {
     depth = depth || 0;
-    var ownerName = (S.user && (S.user.name || S.user.email || S.user.phone)) || null;
+    var ownerName = (S.user && (S.user.name || S.user.email)) || null;
     if (S.rev <= 0) {
       return S.cloud.database.from('user_progress').insert({ payload: state, rev: 1, owner_name: ownerName }).select('rev').then(function (res) {
         if (res.error) {
@@ -408,6 +405,87 @@
       .then(function (res) { if (res.error) throw res.error; return true; });
   }
 
+  /* ================= 协议文本 ================= */
+
+  var DOCS = {
+    privacy: {
+      title: '隐私政策',
+      updated: '2026-10-26',
+      body: [
+        ['我们收集什么', '① 你主动提供的邮箱地址（仅用于登录与找回密码）；② 学习进度：答题记录、对错、模糊次数、复习档位、收藏、纠错备注、每日学习时长；③ 一台设备一个随机生成的设备标识（仅用于「设备管理」里区分设备），以及浏览器与系统的大致类型（如「iPhone · Safari」）。'],
+        ['我们不收集什么', '不收集位置、通讯录、相册、剪贴板、身份证件、银行卡与支付信息；不接入第三方广告或行为统计 SDK；不做用户画像与跨站追踪。'],
+        ['用来做什么', '账号识别与登录、把学习进度同步到你的各台设备、在「设备管理」里展示已登录设备。除此之外不用于任何其他用途，也不会出售或共享给第三方。'],
+        ['存在哪里', '登录状态下，邮箱与学习进度保存在 WorkBuddy 云服务托管的数据库中，按账号做行级隔离（你的账号只能读写你自己那一行）。未登录时，进度只存在你浏览器的 localStorage 里，不会上传。'],
+        ['保存多久', '账号存续期间保存。你随时可以在「账号与云同步」里点「删除云端数据」，云端记录会被立即删除；退出登录不会删除云端数据，也不会删除本机数据。'],
+        ['你的权利', '查看与导出：数据页可随时「导出进度」为 JSON；删除：支持清空本机进度、删除云端数据；更正：卡片内容可通过「✎ 纠错」提交。如需注销邮箱账号，删除云端数据后不再登录即可，或联系开发者协助处理。'],
+        ['未成年人', '本工具面向具备完全民事行为能力的备考者，不面向 14 周岁以下儿童。'],
+        ['变更与联系', '政策如有重大调整会在应用内提示。问题或请求可通过项目仓库 https://github.com/zhiguwww-crypto/shang-an-cards 提 issue。']
+      ]
+    },
+    terms: {
+      title: '用户协议',
+      updated: '2026-10-26',
+      body: [
+        ['服务性质', '本工具是个人学习辅助工具，提供常识与成语知识卡的记忆、复习与自测。内容按公开出版的个人备考资料整理，仅供学习参考，不构成考试承诺，也不保证任何考试结果。'],
+        ['账号与安全', '邮箱验证码或邮箱密码登录。请妥善保管验证码与密码；通过你账号进行的操作视为你本人行为。发现异常请立即修改密码或退出登录。'],
+        ['使用规范', '允许：个人学习使用，包括在你的多台设备上同步进度。禁止：批量抓取或爬取卡片内容、把内容或应用用于商业培训与售卖、二次分发或公开传播卡片原文、绕过账号与权限机制、对服务进行压力测试或攻击。'],
+        ['知识产权', '应用代码开源（见项目仓库），卡片文字整理自公开出版资料，版权归原作者与出版方。若权利人认为内容侵权，可通过仓库 issue 联系，我们会及时下架相关内容。'],
+        ['服务变更与中断', '我们可能因维护、升级或平台调整而变更、暂停部分功能；涉及账号或数据的重要变更会在应用内提示。云同步依赖第三方平台服务，可能因平台故障短时不可用。'],
+        ['数据丢失风险', '虽然有云端同步，但仍建议定期用「导出进度」做本地备份。因设备损坏、清理浏览器数据、平台故障等造成的数据丢失，我们不承担赔偿责任。'],
+        ['免责', '本工具按「现状」提供。因使用或无法使用本工具产生的间接损失，我们在法律允许范围内不承担责任。'],
+        ['适用法律', '本协议适用中华人民共和国法律。发生争议优先协商解决。']
+      ]
+    }
+  };
+
+  function renderDoc(kind) {
+    var d = DOCS[kind];
+    if (!d) return '';
+    var h = '<h3>' + d.title + '</h3><p class="docUpd">更新日期：' + d.updated + '</p>';
+    d.body.forEach(function (sec) {
+      h += '<h4>' + sec[0] + '</h4><p>' + sec[1] + '</p>';
+    });
+    return h;
+  }
+
+  function openDoc(kind) {
+    var ov = document.getElementById('docModal');
+    if (!ov) return;
+    var body = document.getElementById('docBody');
+    if (body) body.innerHTML = renderDoc(kind);
+    if (body) body.scrollTop = 0;
+    ov.classList.add('on');
+  }
+
+  function closeDoc() {
+    var ov = document.getElementById('docModal');
+    if (ov) ov.classList.remove('on');
+  }
+
+  function bindDoc() {
+    var ov = document.getElementById('docModal');
+    if (!ov) return;
+    var closeBtn = document.getElementById('docClose');
+    if (closeBtn) closeBtn.addEventListener('click', closeDoc);
+    ov.addEventListener('click', function (e) { if (e.target === ov) closeDoc(); });
+  }
+
+  /* 删除云端数据：只删自己的行（RLS 保证范围） */
+  function wipeCloud() {
+    if (!S.ready || !isSignedIn()) return Promise.reject(new Error('未登录'));
+    return S.cloud.database.from('user_progress').delete().select('owner_id').then(function (res) {
+      if (res.error) throw res.error;
+      return S.cloud.database.from('sync_sessions').delete().eq('device_id', deviceId()).select('device_id');
+    }).then(function (res) {
+      if (res.error) throw res.error;
+      S.rev = 0;
+      lsDel(K_DIRTY);
+      S.lastSync = 0;
+      renderPanel();
+      return true;
+    });
+  }
+
   /* ================= 面板渲染 ================= */
 
   function fmtTime(ts) {
@@ -445,6 +523,7 @@
     html += '<button class="acctBtn primary" data-acct="sync">立即同步</button>';
     html += '<button class="acctBtn" data-acct="devices">设备管理</button>';
     html += '<button class="acctBtn" data-acct="pwd">改密码</button>';
+    html += '<button class="acctBtn ghost" data-acct="wipe">删除云端数据</button>';
     html += '<button class="acctBtn ghost" data-acct="logout">退出登录</button>';
     html += '</div>';
     html += '<div id="acctDevices" class="acctDevices"></div>';
@@ -479,8 +558,10 @@
   function bindPanel() {
     document.addEventListener('click', function (e) {
       var el = e.target;
-      while (el && el !== document && !(el.getAttribute && el.getAttribute('data-acct'))) el = el.parentNode;
+      while (el && el !== document && !(el.getAttribute && (el.getAttribute('data-acct') || el.getAttribute('data-doc')))) el = el.parentNode;
       if (!el || el === document) return;
+      var doc = el.getAttribute && el.getAttribute('data-doc');
+      if (doc) { openDoc(doc); return; }
       var act = el.getAttribute('data-acct');
       if (act === 'retry') { S.inited = false; S.ready = false; S.sdkMissing = false; init(renderPanel); }
       else if (act === 'login') openAuth();
@@ -490,6 +571,10 @@
       else if (act === 'logout') {
         if (!confirm('退出登录？本机进度会保留，可继续离线使用。')) return;
         signOut().then(function () { App.toast('已退出登录'); });
+      } else if (act === 'wipe') {
+        if (!confirm('删除云端数据？\n\n影响范围：云端保存的学习进度与设备记录会被删除，且无法恢复；本机进度保留。')) return;
+        wipeCloud().then(function () { App.toast('云端数据已删除（本机进度保留）'); })
+          .catch(function (err) { App.toast('删除失败：' + errText(err)); });
       } else if (act === 'drop') {
         dropSession(el.getAttribute('data-id')).then(function () { showDevices(); App.toast('已移除该设备记录'); })
           .catch(function (err) { App.toast('移除失败：' + errText(err)); });
@@ -587,7 +672,7 @@
       busy(sendBtn, true, '发送中…');
       sendCode(id).then(function () {
         busy(sendBtn, false);
-        authMsg('验证码已发送，请查收（未注册的账号验证后将自动创建）', true);
+        authMsg('验证码已发送，请到邮箱查收（未注册的邮箱验证后会自动建号）', true);
         codeCountdown(sendBtn, 60);
       }).catch(function (e) {
         busy(sendBtn, false);
@@ -613,7 +698,7 @@
       busy(resetSend, true, '发送中…');
       startReset(addr).then(function () {
         busy(resetSend, false);
-        authMsg('重置验证码已发送到该邮箱', true);
+        authMsg('重置验证码已发送，请到邮箱查收', true);
         codeCountdown(resetSend, 60);
       }).catch(function (e) { busy(resetSend, false); authMsg(errText(e)); });
     });
@@ -648,6 +733,7 @@
   function boot() {
     bindPanel();
     bindAuth();
+    bindDoc();
     init(renderPanel);
     document.addEventListener('visibilitychange', function () {
       if (document.visibilityState === 'hidden') flush();
@@ -667,6 +753,11 @@
     isSignedIn: isSignedIn,
     openAuth: openAuth,
     closeAuth: closeAuth,
+    openDoc: openDoc,
+    closeDoc: closeDoc,
+    wipeCloud: wipeCloud,
+    _sendCode: sendCode,
+    _docs: DOCS,
     setAuthTab: setAuthTab,
     listSessions: listSessions,
     _state: S,

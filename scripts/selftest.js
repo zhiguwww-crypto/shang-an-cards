@@ -702,6 +702,33 @@ try{
   })());
   ok('T6 未登录时同步为安全空操作', await (async()=>{ const r=await MTSync.syncNow(); return r===false && MTSync.isSignedIn()===false; })());
   ok('T7 登录失败不影响本地进度', typeof App.s==='object' && !!App.s.cards && Object.keys(App.s.cards).length>=0);
+  ok('T8 隐私政策可打开且内容完整', (()=>{
+    MTSync.openDoc('privacy');
+    const on=document.getElementById('docModal').classList.contains('on');
+    const txt=(document.getElementById('docBody').textContent||'');
+    const okDoc=on && txt.indexOf('隐私政策')>=0 && txt.length>400;
+    MTSync.closeDoc();
+    return okDoc && !document.getElementById('docModal').classList.contains('on');
+  })());
+  ok('T9 用户协议可打开且内容完整', (()=>{
+    MTSync.openDoc('terms');
+    const txt=(document.getElementById('docBody').textContent||'');
+    const okDoc=txt.indexOf('用户协议')>=0 && txt.indexOf('使用规范')>=0 && txt.length>400;
+    MTSync.closeDoc();
+    return okDoc;
+  })());
+  ok('T10 仅支持邮箱：手机号被拒绝', await (async()=>{
+    try { await MTSync._sendCode('13800138000'); return false; }
+    catch(e){ return /邮箱/.test(e.message||''); }
+  })());
+  ok('T11 格式错误的邮箱被拒绝', await (async()=>{
+    try { await MTSync._sendCode('not-an-email'); return false; }
+    catch(e){ return /邮箱/.test(e.message||''); }
+  })());
+  ok('T12 未登录不允许删除云端数据', await (async()=>{
+    try { await MTSync.wipeCloud(); return false; }
+    catch(e){ return /未登录/.test(e.message||''); }
+  })());
 
   /* ---------- H 设置 ---------- */
   document.getElementById('btnSet').click();
