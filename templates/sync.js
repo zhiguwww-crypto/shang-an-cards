@@ -14,6 +14,7 @@
 
   var K_DEV = 'zhiche_dev_id_v1';
   var K_DIRTY = 'zhiche_sync_dirty_v1';
+  var K_ENTRY = 'zhiche_entry_v1';          // 首次进入选择：guest / account
   var K_OWN = 'zhiche_bound_owner_v1';     // 本机当前绑定的账号
   var K_STASH = 'zhiche_acct_stash_';       // 各账号在本机的备份槽（切换账号时隔离）
 
@@ -162,6 +163,7 @@
     return S.cloud.auth.signOut().then(function () {
       S.session = null; S.user = null; S.rev = 0; S.lastSync = 0;
       renderPanel();
+      updateGuestTag();
       return true;
     }).catch(function (e) { S.lastError = errText(e); renderPanel(); return false; });
   }
@@ -170,6 +172,8 @@
     if (session && session.user) { S.session = session; S.user = session.user; }
     else if (session && session.access_token) { S.session = session; S.user = session.user || null; }
     var how = adoptAccount(ownerId());
+    lsSet(K_ENTRY, 'account');
+    updateGuestTag();
     renderPanel();
     return syncNow().then(function (ok) {
       if (how === 'switch') {
@@ -444,6 +448,59 @@
       .then(function (res) { if (res.error) throw res.error; return true; });
   }
 
+  /* ================= 首次进入：体验 / 登录 ================= */
+
+  function entryMode() { return lsGet(K_ENTRY) || ''; }
+
+  function updateGuestTag() {
+    var tag = document.getElementById('guestTag');
+    if (!tag) return;
+    var show = !isSignedIn();
+    tag.hidden = !show;
+    tag.textContent = entryMode() === 'guest' ? '体验模式' : '未登录 · 去登录';
+  }
+
+  function openEntry(reopen) {
+    var ov = document.getElementById('entryModal');
+    if (!ov) return;
+    var skip = document.getElementById('entrySkip');
+    if (skip) skip.textContent = reopen ? '继续体验（不登录）' : '继续体验';
+    ov.classList.add('on');
+  }
+
+  function closeEntry() {
+    var ov = document.getElementById('entryModal');
+    if (ov) ov.classList.remove('on');
+  }
+
+  function chooseGuest(silent) {
+    lsSet(K_ENTRY, 'guest');
+    closeEntry();
+    updateGuestTag();
+    if (!silent) { try { App.toast('体验模式：进度只存这台设备，随时可在数据页登录'); } catch (e) {} }
+  }
+
+  function chooseAccount() {
+    lsSet(K_ENTRY, 'account');
+    closeEntry();
+    updateGuestTag();
+    openAuth();
+  }
+
+  function bindEntry() {
+    var ov = document.getElementById('entryModal');
+    if (!ov) return;
+    var g = document.getElementById('entryGuest');
+    var a = document.getElementById('entryAccount');
+    var sk = document.getElementById('entrySkip');
+    var tag = document.getElementById('guestTag');
+    if (g) g.addEventListener('click', function () { chooseGuest(false); });
+    if (sk) sk.addEventListener('click', function () { chooseGuest(true); });
+    if (a) a.addEventListener('click', function () { chooseAccount(); });
+    if (tag) tag.addEventListener('click', function () { openEntry(true); });
+    ov.addEventListener('click', function (e) { if (e.target === ov) chooseGuest(true); });
+  }
+
   /* ================= 协议文本 ================= */
 
   var DOCS = {
@@ -536,6 +593,7 @@
 
   function renderPanel() {
     var box = document.getElementById('acctBody');
+    if (box) updateGuestTag();
     if (!box) return;
     var html = '';
 
@@ -773,6 +831,8 @@
     bindPanel();
     bindAuth();
     bindDoc();
+    bindEntry();
+    if (!entryMode()) openEntry(false); else updateGuestTag();
     init(renderPanel);
     document.addEventListener('visibilitychange', function () {
       if (document.visibilityState === 'hidden') flush();
@@ -792,6 +852,11 @@
     isSignedIn: isSignedIn,
     openAuth: openAuth,
     closeAuth: closeAuth,
+    openEntry: openEntry,
+    closeEntry: closeEntry,
+    _entryMode: entryMode,
+    _chooseGuest: chooseGuest,
+    _chooseAccount: chooseAccount,
     openDoc: openDoc,
     closeDoc: closeDoc,
     wipeCloud: wipeCloud,

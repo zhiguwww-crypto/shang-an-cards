@@ -61,10 +61,11 @@ header{
   background:var(--header-bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
   z-index:20;
 }
-.brand{display:flex;align-items:baseline;gap:9px;min-width:0}
-.brand h1{font-family:var(--serif);font-size:17px;letter-spacing:2px;font-weight:600;white-space:nowrap}
+.brand{display:flex;align-items:baseline;gap:9px;min-width:0;flex:1 1 auto;overflow:hidden}
+.brand h1{font-family:var(--serif);font-size:17px;letter-spacing:2px;font-weight:600;white-space:nowrap;
+  min-width:0;overflow:hidden;text-overflow:ellipsis}
 .brand em{font-style:normal;font-size:10.5px;color:var(--ink-3);letter-spacing:1.5px;white-space:nowrap}
-.hstats{display:flex;align-items:center;gap:14px;margin-left:auto}
+.hstats{display:flex;align-items:center;gap:14px;margin-left:auto;flex:0 0 auto}
 .hstats div{display:flex;align-items:baseline;gap:4px;font-size:11px;color:var(--ink-2);white-space:nowrap}
 /* .hstats div 优先级高于 .ring，会把圆环也变成 flex + baseline 对齐，数字被挤到左上角 */
 .hstats .ring{display:grid;place-items:center;align-items:center;justify-items:center;grid-gap:0;gap:0}
@@ -245,6 +246,34 @@ main{flex:1;min-height:0;position:relative}
 .acctDev small{font-size:10px;color:var(--ink-3)}
 .acctMini{padding:5px 9px;border-radius:8px;border:1px solid var(--line-2);background:transparent;
   color:var(--ink-2);font-size:10.5px;-webkit-appearance:none;appearance:none}
+
+/* 体验模式徽标 */
+.guestTag{flex:0 0 auto;margin-left:9px;padding:3px 9px;border-radius:999px;border:1px dashed var(--ink-3);
+  background:transparent;color:var(--ink-2);font-size:10px;letter-spacing:.6px;white-space:nowrap;
+  -webkit-appearance:none;appearance:none}
+.guestTag[hidden]{display:none}
+
+/* 首次进入：体验 / 登录 选择 */
+.entryModal{position:fixed;top:0;right:0;bottom:0;left:0;z-index:975;background:rgba(28,25,23,.55);
+  display:none;align-items:center;justify-content:center;padding:18px}
+.entryModal.on{display:flex}
+.entryCard{background:var(--card);border-radius:20px;padding:22px 18px 16px;width:100%;max-width:420px;
+  max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.entryCard h2{font-family:var(--serif);font-size:18px;letter-spacing:1.4px;color:var(--ink);margin-bottom:6px}
+.entrySub{font-size:11.5px;line-height:1.7;color:var(--ink-3);margin-bottom:14px}
+.entryOpt{display:block;width:100%;text-align:left;border:1px solid var(--line-2);border-radius:14px;
+  background:var(--paper-2,#f7f2e9);padding:13px 14px;margin-bottom:10px;-webkit-appearance:none;appearance:none}
+.entryOpt.accent{border-color:var(--ink-3);background:var(--card)}
+.entryOpt .eoH{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px}
+.entryOpt .eoH b{font-size:14px;color:var(--ink);letter-spacing:.6px}
+.entryOpt .eoH i{font-style:normal;font-size:10px;color:var(--ink-3);letter-spacing:.5px}
+.entryOpt .eoD{display:block;font-size:11.5px;color:var(--ink-2);margin-bottom:7px}
+.entryOpt .eoL{display:flex;flex-wrap:wrap}
+.entryOpt .eoL em{font-style:normal;font-size:10px;color:var(--ink-3);margin:0 8px 4px 0;
+  padding:2px 7px;border-radius:999px;background:rgba(0,0,0,.045)}
+.entryFoot{font-size:10.5px;line-height:1.7;color:var(--ink-3);margin:6px 0 10px}
+.entrySkip{width:100%;padding:11px;border-radius:12px;border:none;background:var(--ink);
+  color:var(--on-ink);font-size:13px;letter-spacing:1px;-webkit-appearance:none;appearance:none}
 
 .acctLegal{margin:10px 0 0;font-size:10.5px;color:var(--ink-3)}
 .acctLegal button{border:none;background:transparent;padding:0;color:var(--ink-2);font-size:10.5px;
@@ -1089,6 +1118,7 @@ nav > * + *{margin-left:2px}
 
 <header>
   <div class="brand"><h1>上岸常识刷刷刷</h1><em>艾宾浩斯 · 每日复习</em></div>
+      
   <div class="hstats">
     <div><b id="hToday">0</b>今日</div>
     <div><b id="hStreak">0</b>连续</div>

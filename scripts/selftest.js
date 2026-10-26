@@ -29,6 +29,9 @@ function key(k,code){document.dispatchEvent(new KeyboardEvent('keydown',{key:k,c
 try{
   await sleep(700);
 
+  // 首次进入的「体验 / 登录」层会遮住页面，自检里先收起并标记为体验模式
+  if (window.MTSync) { try { MTSync._chooseGuest(true); } catch (e) {} }
+
   /* ---------- A 启动 ---------- */
   ok('A1 无脚本错误', window.__err.length===0, window.__err.join(';'));
   ok('A2 卡片库规模', CARDS.length>2500, CARDS.length);
@@ -774,6 +777,38 @@ try{
   localStorage.removeItem('zhiche_acct_stash_ownerA');
   localStorage.removeItem('zhiche_acct_stash_ownerC');
   App.rawSet(snapRaw);
+
+  /* ---------- V 首次进入：体验 / 登录 ---------- */
+  ok('V1 入口层有两个选项', (()=>{
+    MTSync.openEntry(false);
+    const on=document.getElementById('entryModal').classList.contains('on');
+    const n=document.querySelectorAll('#entryModal .entryOpt').length;
+    return on && n===2 && !!document.getElementById('guestTag');
+  })());
+  ok('V2 两种模式的差异说明齐全', (()=>{
+    const txt=document.getElementById('entryModal').textContent||'';
+    return txt.indexOf('体验模式')>=0 && txt.indexOf('登录模式')>=0
+      && txt.indexOf('只存这台设备')>=0 && txt.indexOf('云端')>=0;
+  })());
+  ok('V3 选体验模式：写标记、显示徽标、关闭入口', (()=>{
+    MTSync._chooseGuest(true);
+    const tag=document.getElementById('guestTag');
+    return MTSync._entryMode()==='guest' && tag.hidden===false
+      && tag.textContent.indexOf('体验')>=0
+      && !document.getElementById('entryModal').classList.contains('on');
+  })());
+  ok('V4 体验态可随时再唤起入口', (()=>{
+    MTSync.openEntry(true);
+    return document.getElementById('entryModal').classList.contains('on');
+  })());
+  ok('V5 选登录模式直接进入登录流程', (()=>{
+    MTSync._chooseAccount();
+    const okModal=document.getElementById('authModal').classList.contains('on');
+    return MTSync._entryMode()==='account' && okModal
+      && !document.getElementById('entryModal').classList.contains('on');
+  })());
+  MTSync.closeAuth(); MTSync.closeEntry();
+  localStorage.removeItem('zhiche_entry_v1');
 
   /* ---------- H 设置 ---------- */
   document.getElementById('btnSet').click();
