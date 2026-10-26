@@ -730,6 +730,51 @@ try{
     catch(e){ return /未登录/.test(e.message||''); }
   })());
 
+  /* ---------- U 登录后自动恢复进度 ---------- */
+  const snapRaw=App.rawGet();
+  ok('U1 保存时写入断点快照', (()=>{
+    App.scope='know'; App.mode='fill'; App.idx=3; App.save();
+    const ui=App.s.ui||{};
+    return ui.idx===3 && ui.mode==='fill' && typeof ui.cardId==='string' && typeof ui.view==='string';
+  })());
+  ok('U2 合并落地后恢复到同一张卡', (()=>{
+    const item=App.queue[3];
+    if(!item)return true;
+    const id=item.c.id;
+    const remote=JSON.parse(JSON.stringify(App.s));
+    remote.ui={scope:'know',mode:'recite',idx:0,cardId:id,view:'today'};
+    App.applyRemote(remote);
+    return !!(App.queue[App.idx] && App.queue[App.idx].c.id===id) && App.mode==='recite';
+  })());
+  ok('U3 换账号隔离：旧号进备份槽、新号回初始', (()=>{
+    App.s.cards['probe']={lv:2,seen:3,right:3,wrong:0,fuzzy:0,due:'2026-11-01',streak:2,born:'2026-10-01'};
+    App.save();
+    localStorage.setItem('zhiche_bound_owner_v1','ownerA');
+    const how=MTSync._adoptAccount('ownerB');
+    const stashed=!!localStorage.getItem('zhiche_acct_stash_ownerA');
+    const cleared=Object.keys(App.s.cards).length===0;
+    return how==='switch' && stashed && cleared;
+  })());
+  ok('U4 切回原账号取回自己的本机进度', (()=>{
+    const how=MTSync._adoptAccount('ownerA');
+    return how==='switch' && !!App.s.cards['probe'];
+  })());
+  ok('U5 首次绑定采纳本机进度（不清空）', (()=>{
+    localStorage.removeItem('zhiche_bound_owner_v1');
+    const before=Object.keys(App.s.cards).length;
+    const how=MTSync._adoptAccount('ownerC');
+    return how==='adopt' && Object.keys(App.s.cards).length===before;
+  })());
+  ok('U6 无历史记录时回到初始状态', (()=>{
+    App.resetToInitial();
+    return Object.keys(App.s.cards).length===0 && App.idx===0 && App.queue.length>0;
+  })());
+  // 复原测试环境
+  localStorage.removeItem('zhiche_bound_owner_v1');
+  localStorage.removeItem('zhiche_acct_stash_ownerA');
+  localStorage.removeItem('zhiche_acct_stash_ownerC');
+  App.rawSet(snapRaw);
+
   /* ---------- H 设置 ---------- */
   document.getElementById('btnSet').click();
   await sleep(60);

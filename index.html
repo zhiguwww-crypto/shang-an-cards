@@ -1705,6 +1705,8 @@ function splitEnum(text){
 
   var K_DEV = 'zhiche_dev_id_v1';
   var K_DIRTY = 'zhiche_sync_dirty_v1';
+  var K_OWN = 'zhiche_bound_owner_v1';     // 本机当前绑定的账号
+  var K_STASH = 'zhiche_acct_stash_';       // 各账号在本机的备份槽（切换账号时隔离）
 
   var S = {
     cloud: null, ready: false, sdkMissing: false,
@@ -1771,7 +1773,7 @@ function splitEnum(text){
         var sess = (res && res.data) || null;
         S.session = sess && sess.user ? sess : (sess && sess.access_token ? sess : null);
         S.user = S.session ? (S.session.user || null) : null;
-        if (S.session) { syncNow(); }
+        if (S.session) { adoptAccount(ownerId()); syncNow(); }
         if (cb) cb();
       }).catch(function (e) {
         S.lastError = errText(e);
@@ -1858,11 +1860,48 @@ function splitEnum(text){
   function afterSignIn(session) {
     if (session && session.user) { S.session = session; S.user = session.user; }
     else if (session && session.access_token) { S.session = session; S.user = session.user || null; }
+    var how = adoptAccount(ownerId());
     renderPanel();
-    return syncNow().then(function () { return true; });
+    return syncNow().then(function (ok) {
+      if (how === 'switch') {
+        try { App.toast('已切换账号，并加载该账号的进度'); } catch (e) {}
+      } else if (ok) {
+        try { App.toast('已恢复上次进度'); } catch (e) {}
+      }
+      return true;
+    });
   }
 
   function isSignedIn() { return !!(S.session && S.user); }
+
+  function ownerId() {
+    var u = S.user || {};
+    return String(u.id || u.sub || u.user_id || u.email || '');
+  }
+
+  /* 账号与本机数据的绑定：
+     - 首次在本机登录 → 采纳本机已有进度（不丢数据），随后与云端合并
+     - 同一账号再次登录 → 直接合并
+     - 换另一个账号 → 把上一账号的进度存进它自己的备份槽，然后装载新账号的本机缓存；
+       新账号没有缓存则回到初始状态（绝不继承别人账号的进度）
+  */
+  function adoptAccount(owner) {
+    if (!owner) return 'none';
+    var bound = lsGet(K_OWN);
+    if (!bound) { lsSet(K_OWN, owner); return 'adopt'; }
+    if (bound === owner) return 'same';
+
+    if (hooks.readRaw) {
+      var cur = hooks.readRaw();
+      if (cur) lsSet(K_STASH + bound, cur);
+    }
+    var mine = lsGet(K_STASH + owner);
+    if (mine && hooks.writeRaw) hooks.writeRaw(mine);
+    else if (hooks.resetToInitial) hooks.resetToInitial();
+
+    lsSet(K_OWN, owner);
+    return 'switch';
+  }
 
   function userLabel() {
     var u = S.user || {};
@@ -2448,6 +2487,8 @@ function splitEnum(text){
     closeDoc: closeDoc,
     wipeCloud: wipeCloud,
     _sendCode: sendCode,
+    _adoptAccount: adoptAccount,
+    _ownerId: ownerId,
     _docs: DOCS,
     setAuthTab: setAuthTab,
     listSessions: listSessions,
@@ -2462,7 +2503,8 @@ function splitEnum(text){
 const KEY='zhiche_srs_v2';
 const SCHEMA=1;   // 进度文件格式版本
 const DEFAULT={cards:{},log:{},stars:{},time:{},ans:{},fixes:[],goalHit:null,
-  settings:{newPerDay:30,revLimit:200,dailyGoal:60,theme:'auto',cfgVer:3,studyCat:'全部'},created:null};
+  settings:{newPerDay:30,revLimit:200,dailyGoal:60,theme:'auto',cfgVer:3,studyCat:'全部'},
+  created:null,ui:null};
 
 const CONFIG={
   intervals:[0,1,2,4,7,15,30,60],   // 复习间隔（天）
@@ -2520,23 +2562,74 @@ const App={
       return st;
     }catch(e){ return structuredClone(DEFAULT); }
   },
+  /* 断点快照：登录后在新设备上恢复到「上次停在哪」 */
+  uiSnap(){
+    const item=this.queue[this.idx];
+    const nb=document.querySelector('nav button.on');
+    return {
+      scope:this.scope, mode:this.mode,
+      idx:this.idx, cardId:item?item.c.id:'',
+      view:(nb&&nb.dataset.v)||'today', at:Date.now()
+    };
+  },
+
   save(){
-    try{ this.s.schema=SCHEMA; localStorage.setItem(KEY,JSON.stringify(this.s)); }
+    try{
+      this.s.schema=SCHEMA;
+      this.s.ui=this.uiSnap();
+      localStorage.setItem(KEY,JSON.stringify(this.s));
+    }
     catch(e){ this.toast('浏览器禁用了本地存储，进度无法保存'); }
     if(window.MTSync)window.MTSync.markDirty();     // 登录状态下触发增量同步（未登录为空操作）
   },
 
-  /* 云端合并结果落地：整体替换本地状态并重绘（不主动再触发上传） */
+  /* 云端合并结果落地：整体替换本地状态、重建队列，并恢复到上次中断的位置 */
   applyRemote(st){
     if(!st||typeof st!=='object')return;
+    const ui=st.ui||null;
     this.s=st;
     try{ this.s.schema=SCHEMA; localStorage.setItem(KEY,JSON.stringify(this.s)); }catch(e){}
     this.applyTheme(this.s.settings&&this.s.settings.theme||'auto');
     this.buildQueues();
+    if(ui){
+      if(ui.mode==='fill'||ui.mode==='recite'){ this.mode=ui.mode; this.paintSeg(); }
+      const sc=(ui.scope==='idiom'||ui.scope==='know')?ui.scope:'know';
+      this.activate(sc);
+      let k=-1;
+      if(ui.cardId) k=this.queue.findIndex(x=>x.c.id===ui.cardId);
+      if(k<0&&typeof ui.idx==='number') k=Math.max(0,Math.min(ui.idx,Math.max(0,this.queue.length-1)));
+      this.idx=k<0?0:k;
+      this.pos[this.scope]=this.idx;
+      if(ui.view){
+        const b=document.querySelector('nav button[data-v="'+ui.view+'"]');
+        if(b&&!b.classList.contains('on'))b.click();
+      }
+    }
     this.buildCatChips&&this.buildCatChips();
     this.paintGoal&&this.paintGoal();
-    if(this.s.scope!==undefined){} 
     this.render();
+  },
+
+  /* —— 账号隔离用：原始读写与回到初始状态 —— */
+  rawGet(){ try{ return localStorage.getItem(KEY); }catch(e){ return null; } },
+  rawSet(json){
+    try{ if(json)localStorage.setItem(KEY,json); }catch(e){}
+    this.s=this.load();
+    if(!this.s.created)this.s.created=this.today();
+    this.applyRemote(this.s);
+  },
+  resetToInitial(){
+    this.s=(typeof structuredClone==='function')?structuredClone(DEFAULT):JSON.parse(JSON.stringify(DEFAULT));
+    this.s.created=this.today();
+    try{ localStorage.setItem(KEY,JSON.stringify(this.s)); }catch(e){}
+    this.queue=[]; this.idx=0; this.pos={know:0,idiom:0};
+    this.queues={know:{list:[],n:0,r:0},idiom:{list:[],n:0,r:0}};
+    this.sess={know:{ok:0,total:0},idiom:{ok:0,total:0}};
+    this.buildQueues();
+    this.buildCatChips&&this.buildCatChips();
+    this.paintGoal&&this.paintGoal();
+    this.render();
+    this.renderStats&&this.renderStats();
   },
 
   today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')},
@@ -4637,7 +4730,10 @@ App.boot();
 if(window.MTSync){
   window.MTSync.bind({
     get:function(){ return App.s; },
-    set:function(st){ App.applyRemote(st); }
+    set:function(st){ App.applyRemote(st); },
+    readRaw:function(){ return App.rawGet(); },
+    writeRaw:function(json){ App.rawSet(json); },
+    resetToInitial:function(){ App.resetToInitial(); }
   });
   window.MTSync.boot();
 }

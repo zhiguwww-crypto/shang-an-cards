@@ -14,6 +14,8 @@
 
   var K_DEV = 'zhiche_dev_id_v1';
   var K_DIRTY = 'zhiche_sync_dirty_v1';
+  var K_OWN = 'zhiche_bound_owner_v1';     // 本机当前绑定的账号
+  var K_STASH = 'zhiche_acct_stash_';       // 各账号在本机的备份槽（切换账号时隔离）
 
   var S = {
     cloud: null, ready: false, sdkMissing: false,
@@ -80,7 +82,7 @@
         var sess = (res && res.data) || null;
         S.session = sess && sess.user ? sess : (sess && sess.access_token ? sess : null);
         S.user = S.session ? (S.session.user || null) : null;
-        if (S.session) { syncNow(); }
+        if (S.session) { adoptAccount(ownerId()); syncNow(); }
         if (cb) cb();
       }).catch(function (e) {
         S.lastError = errText(e);
@@ -167,11 +169,48 @@
   function afterSignIn(session) {
     if (session && session.user) { S.session = session; S.user = session.user; }
     else if (session && session.access_token) { S.session = session; S.user = session.user || null; }
+    var how = adoptAccount(ownerId());
     renderPanel();
-    return syncNow().then(function () { return true; });
+    return syncNow().then(function (ok) {
+      if (how === 'switch') {
+        try { App.toast('已切换账号，并加载该账号的进度'); } catch (e) {}
+      } else if (ok) {
+        try { App.toast('已恢复上次进度'); } catch (e) {}
+      }
+      return true;
+    });
   }
 
   function isSignedIn() { return !!(S.session && S.user); }
+
+  function ownerId() {
+    var u = S.user || {};
+    return String(u.id || u.sub || u.user_id || u.email || '');
+  }
+
+  /* 账号与本机数据的绑定：
+     - 首次在本机登录 → 采纳本机已有进度（不丢数据），随后与云端合并
+     - 同一账号再次登录 → 直接合并
+     - 换另一个账号 → 把上一账号的进度存进它自己的备份槽，然后装载新账号的本机缓存；
+       新账号没有缓存则回到初始状态（绝不继承别人账号的进度）
+  */
+  function adoptAccount(owner) {
+    if (!owner) return 'none';
+    var bound = lsGet(K_OWN);
+    if (!bound) { lsSet(K_OWN, owner); return 'adopt'; }
+    if (bound === owner) return 'same';
+
+    if (hooks.readRaw) {
+      var cur = hooks.readRaw();
+      if (cur) lsSet(K_STASH + bound, cur);
+    }
+    var mine = lsGet(K_STASH + owner);
+    if (mine && hooks.writeRaw) hooks.writeRaw(mine);
+    else if (hooks.resetToInitial) hooks.resetToInitial();
+
+    lsSet(K_OWN, owner);
+    return 'switch';
+  }
 
   function userLabel() {
     var u = S.user || {};
@@ -757,6 +796,8 @@
     closeDoc: closeDoc,
     wipeCloud: wipeCloud,
     _sendCode: sendCode,
+    _adoptAccount: adoptAccount,
+    _ownerId: ownerId,
     _docs: DOCS,
     setAuthTab: setAuthTab,
     listSessions: listSessions,

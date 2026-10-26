@@ -1696,7 +1696,8 @@ __SYNC__
 const KEY='zhiche_srs_v2';
 const SCHEMA=1;   // 进度文件格式版本
 const DEFAULT={cards:{},log:{},stars:{},time:{},ans:{},fixes:[],goalHit:null,
-  settings:{newPerDay:30,revLimit:200,dailyGoal:60,theme:'auto',cfgVer:3,studyCat:'全部'},created:null};
+  settings:{newPerDay:30,revLimit:200,dailyGoal:60,theme:'auto',cfgVer:3,studyCat:'全部'},
+  created:null,ui:null};
 
 const CONFIG={
   intervals:[0,1,2,4,7,15,30,60],   // 复习间隔（天）
@@ -1754,23 +1755,74 @@ const App={
       return st;
     }catch(e){ return structuredClone(DEFAULT); }
   },
+  /* 断点快照：登录后在新设备上恢复到「上次停在哪」 */
+  uiSnap(){
+    const item=this.queue[this.idx];
+    const nb=document.querySelector('nav button.on');
+    return {
+      scope:this.scope, mode:this.mode,
+      idx:this.idx, cardId:item?item.c.id:'',
+      view:(nb&&nb.dataset.v)||'today', at:Date.now()
+    };
+  },
+
   save(){
-    try{ this.s.schema=SCHEMA; localStorage.setItem(KEY,JSON.stringify(this.s)); }
+    try{
+      this.s.schema=SCHEMA;
+      this.s.ui=this.uiSnap();
+      localStorage.setItem(KEY,JSON.stringify(this.s));
+    }
     catch(e){ this.toast('浏览器禁用了本地存储，进度无法保存'); }
     if(window.MTSync)window.MTSync.markDirty();     // 登录状态下触发增量同步（未登录为空操作）
   },
 
-  /* 云端合并结果落地：整体替换本地状态并重绘（不主动再触发上传） */
+  /* 云端合并结果落地：整体替换本地状态、重建队列，并恢复到上次中断的位置 */
   applyRemote(st){
     if(!st||typeof st!=='object')return;
+    const ui=st.ui||null;
     this.s=st;
     try{ this.s.schema=SCHEMA; localStorage.setItem(KEY,JSON.stringify(this.s)); }catch(e){}
     this.applyTheme(this.s.settings&&this.s.settings.theme||'auto');
     this.buildQueues();
+    if(ui){
+      if(ui.mode==='fill'||ui.mode==='recite'){ this.mode=ui.mode; this.paintSeg(); }
+      const sc=(ui.scope==='idiom'||ui.scope==='know')?ui.scope:'know';
+      this.activate(sc);
+      let k=-1;
+      if(ui.cardId) k=this.queue.findIndex(x=>x.c.id===ui.cardId);
+      if(k<0&&typeof ui.idx==='number') k=Math.max(0,Math.min(ui.idx,Math.max(0,this.queue.length-1)));
+      this.idx=k<0?0:k;
+      this.pos[this.scope]=this.idx;
+      if(ui.view){
+        const b=document.querySelector('nav button[data-v="'+ui.view+'"]');
+        if(b&&!b.classList.contains('on'))b.click();
+      }
+    }
     this.buildCatChips&&this.buildCatChips();
     this.paintGoal&&this.paintGoal();
-    if(this.s.scope!==undefined){} 
     this.render();
+  },
+
+  /* —— 账号隔离用：原始读写与回到初始状态 —— */
+  rawGet(){ try{ return localStorage.getItem(KEY); }catch(e){ return null; } },
+  rawSet(json){
+    try{ if(json)localStorage.setItem(KEY,json); }catch(e){}
+    this.s=this.load();
+    if(!this.s.created)this.s.created=this.today();
+    this.applyRemote(this.s);
+  },
+  resetToInitial(){
+    this.s=(typeof structuredClone==='function')?structuredClone(DEFAULT):JSON.parse(JSON.stringify(DEFAULT));
+    this.s.created=this.today();
+    try{ localStorage.setItem(KEY,JSON.stringify(this.s)); }catch(e){}
+    this.queue=[]; this.idx=0; this.pos={know:0,idiom:0};
+    this.queues={know:{list:[],n:0,r:0},idiom:{list:[],n:0,r:0}};
+    this.sess={know:{ok:0,total:0},idiom:{ok:0,total:0}};
+    this.buildQueues();
+    this.buildCatChips&&this.buildCatChips();
+    this.paintGoal&&this.paintGoal();
+    this.render();
+    this.renderStats&&this.renderStats();
   },
 
   today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')},
@@ -3871,7 +3923,10 @@ App.boot();
 if(window.MTSync){
   window.MTSync.bind({
     get:function(){ return App.s; },
-    set:function(st){ App.applyRemote(st); }
+    set:function(st){ App.applyRemote(st); },
+    readRaw:function(){ return App.rawGet(); },
+    writeRaw:function(json){ App.rawSet(json); },
+    resetToInitial:function(){ App.resetToInitial(); }
   });
   window.MTSync.boot();
 }
